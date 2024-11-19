@@ -1,28 +1,33 @@
 #include <stdbool.h>
 #include <unistd.h>
-#include <stdio.h> //for basic printf commands
+#include <stdio.h>
 #include <stdlib.h>
-#include <string.h> //for handling strings
+#include <string.h> 
+
+
+//miscellaneous
 #include "driver/gpio.h"
-#include "freertos/FreeRTOS.h" //for delay,mutexs,semphrs rtos operations
+#include "freertos/FreeRTOS.h" //delay,mutexx,semphr i rtos
 #include "freertos/task.h"
-#include "esp_system.h" //esp_init funtions esp_err_t 
-#include "esp_wifi.h" //esp_wifi_init functions and wifi operations
-#include "esp_log.h" //for showing logs
-#include "esp_event.h" //for wifi event
 #include "nvs_flash.h" //non volatile storage
-#include "lwip/err.h" //light weight ip packets error handling
-#include "lwip/sys.h" //system applications for light weight ip apps
 
-
+//biblioteki esp
+#include "esp_system.h"
+#include "esp_wifi.h" //wifi functions and operations
+#include "esp_log.h" //pokazywanie logów
+#include "esp_event.h" //wifi event
+//do zad2 lab1
 #include "esp_err.h"
-//#include "protocol_examples_common.h"
 #include "esp_netif.h"
 #include "esp_tls.h"
-#include "lwip/sockets.h"
-#include "lwip/netdb.h"
 
-const char *your_ssid = "Logiczna Sieć";
+//light weight ip (TCP IP)
+#include "lwip/sockets.h" //sockets
+#include "lwip/netdb.h" 
+#include "lwip/err.h" //error handling
+#include "lwip/sys.h" //system applications
+
+const char *your_ssid = "Logiczna Sieć"; 
 const char *your_pass = "srzj6042";
 bool is_connected_to_wifi = false;
 #define TAG "HTTP_GET"
@@ -35,16 +40,18 @@ static void wifi_event_handler(void* event_handler_arg, esp_event_base_t event_b
 	else if (event_id == WIFI_EVENT_STA_CONNECTED){
 	  printf("WiFi CONNECTED\n");
 	  is_connected_to_wifi = true;
+	  printf("IsConnectedToWifi = %s\n", is_connected_to_wifi ? "true" : "false") ;// na potrz. prez. //można pozniej usunac
 	}
 	
 	else if (event_id == WIFI_EVENT_STA_DISCONNECTED){
 	  is_connected_to_wifi = false;
 	  printf("WiFi lost connection\n");
-	  gpio_set_level(GPIO_NUM_17,1);
+	  gpio_set_level(GPIO_NUM_17,1); //miganie diody
       vTaskDelay(100);
       gpio_set_level(GPIO_NUM_17, 0);
       vTaskDelay(100);
 	  esp_wifi_connect();
+	  printf("IsConnectedToWifi = %s\n", is_connected_to_wifi ? "true" : "false"); // na potrz. prez. //można pozniej usunac
 	  printf("Retrying to Connect...\n");
 	}
 	else if (event_id == IP_EVENT_STA_GOT_IP)
@@ -55,26 +62,28 @@ static void wifi_event_handler(void* event_handler_arg, esp_event_base_t event_b
 
 
 void wifi_connection(){
-	esp_netif_init(); //network interdace initialization
+	esp_netif_init(); //network interface initialization
 	esp_event_loop_create_default(); //responsible for handling and dispatching events
-	esp_netif_create_default_wifi_sta(); //sets up necessary data structs for wifi station interface
-	wifi_init_config_t wifi_initiation = WIFI_INIT_CONFIG_DEFAULT();//sets up wifi wifi_init_config struct with default values
-	esp_wifi_init(&wifi_initiation); //wifi initialised with dafault wifi_initiation
-	esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL);//creating event handler register for wifi
-	esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, wifi_event_handler, NULL);//creating event handler register for ip event
+	esp_netif_create_default_wifi_sta(); //necessary data structs for wifi station interface
+	wifi_init_config_t wifi_initiation = WIFI_INIT_CONFIG_DEFAULT();//wifi_init_config struct (defaultowe wartosci)
+	esp_wifi_init(&wifi_initiation); //wifi initialised 
+	
+	esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL);//register event handler register dla wifi event
+	esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, wifi_event_handler, NULL);//register event handler dla ip event
 	wifi_config_t wifi_configuration = { //struct wifi_config_t var wifi_configuration
 		.sta= {
 		    .ssid = "",
-		    .password= "", /*we are sending a const char of ssid and password which we will strcpy in following line so leaving it blank*/ 
-		  }//also this part is used if you donot want to use Kconfig.projbuild
+		    .password= "", 
+		  }
 	};
-	strcpy((char*)wifi_configuration.sta.ssid,your_ssid); // copy chars from hardcoded configs to struct
-	strcpy((char*)wifi_configuration.sta.password,your_pass);
-	esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_configuration);//setting up configs when event ESP_IF_WIFI_STA
-	esp_wifi_start();//start connection with configurations provided in funtion
+	strcpy((char*)wifi_configuration.sta.ssid,your_ssid); // kopiowanie do wifi_configuration struct
+	strcpy((char*)wifi_configuration.sta.password,your_pass); //ssid i password zadeklarowane narazie w kodzie 
+	
+	esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_configuration);// configi dla eventu ESP_IF_WIFI_STA
+	esp_wifi_start();//start connection 
 	esp_wifi_set_mode(WIFI_MODE_STA);//station mode selected
-	esp_wifi_connect(); //connect with saved ssid and pass
-	printf( "wifi_init_softap finished. SSID:%s  password:%s",your_ssid,your_pass);
+	esp_wifi_connect(); //połączenie za pomocą podanych ssid i pass
+	printf( "wifi_init finished SSID:%s  password:%s",your_ssid,your_pass);
 }
 
 void get_site_html(const char *server_name) {
@@ -85,17 +94,17 @@ void get_site_html(const char *server_name) {
                           "\r\n";
 
     char request_buffer[256];
-    snprintf(request_buffer, sizeof(request_buffer), REQUEST, server_name);
+    snprintf(request_buffer, sizeof(request_buffer), REQUEST, server_name); //tworzy pełne zapytanie
 
-    struct addrinfo hints;
-    struct addrinfo *res;
-    int sockfd;
-    char recv_buffer[1024];
+    struct addrinfo hints; //do funckji getaddrinfo() (zawiera preferencje dotyczące tworzenia połączenia sieciowego.)
+    struct addrinfo *res; //wsakznik na strukture getaddrinfo (do zwalniania pamięci)
+    int sockfd; //deskryptor gniazda(socketu)
+    char recv_buffer[1024]; //bufor na dane
 
-    // Konfiguracja adresu serwera
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
+    //Konfiguracja adresu serwera
+    memset(&hints, 0, sizeof(hints)); // Inicjalizacja struktury
+    hints.ai_family = AF_INET; // Uzycie IPv4
+    hints.ai_socktype = SOCK_STREAM; // Uzycie TCP
 
     int err = getaddrinfo(server_name, "80", &hints, &res);
     if (err != 0 || res == NULL) {
@@ -104,7 +113,7 @@ void get_site_html(const char *server_name) {
         return;
     }
 
-    // Nawiązanie połączenia TCP
+    //Nawiązanie połączenia TCP
     sockfd = socket(res->ai_family, res->ai_socktype, 0);
     if (sockfd < 0) {
         ESP_LOGE(TAG, "Błąd przy tworzeniu socketu");
@@ -119,20 +128,20 @@ void get_site_html(const char *server_name) {
         return;
     }
 
-    // Zwolnienie struktury adresu
+    //Zwolnienie struktury adresu
     freeaddrinfo(res);
 
-    // Wysłanie zapytania GET
+    //Wysłanie zapytania GET
     if (write(sockfd, request_buffer, strlen(request_buffer)) < 0) {
         ESP_LOGE(TAG, "Błąd przy wysyłaniu zapytania");
         close(sockfd);
         return;
     }
 
-    // Odbiór i wypisanie odpowiedzi
+    //Odbiór i wypisanie odpowiedzi
     int len;
     while ((len = read(sockfd, recv_buffer, sizeof(recv_buffer) - 1)) > 0) {
-        recv_buffer[len] = 0;  // Dodanie znaku końca stringa
+        recv_buffer[len] = 0;  // Dodanie znaku końca stringa (ten sam efekt co \0)
         printf("%s", recv_buffer);  // Wypisanie odebranej treści
     }
 
@@ -140,16 +149,26 @@ void get_site_html(const char *server_name) {
         ESP_LOGE(TAG, "Błąd przy odbiorze danych");
     }
 
-    // Zamknięcie połączenia
+    //Zamknięcie połączenia
     close(sockfd);
 }
 
 void app_main(void)
 {
-	gpio_set_direction(GPIO_NUM_17, GPIO_MODE_OUTPUT);
-
+	gpio_set_direction(GPIO_NUM_17, GPIO_MODE_OUTPUT); //zewnetrzna dioda
 	nvs_flash_init(); 
 	wifi_connection(); //zad1
-	vTaskDelay(200);
- 	get_site_html("httpforever.com");    //zad2
+	vTaskDelay(200); //dla pewnosci ze wifi juz będzie gotowe
+	//dodac petle
+	while(true){
+		if(is_connected_to_wifi==true){
+			get_site_html("httpforever.com");    //zad2
+			break;
+		}
+		else{
+			printf("Wifi was not available, connect to Wifi and try again\n");
+			vTaskDelay(200);
+		}
+	}
+	
 }
