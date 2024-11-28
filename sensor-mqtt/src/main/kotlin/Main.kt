@@ -1,11 +1,13 @@
 package parking;
 
+import parking.mqtt.Action
 import parking.mqtt.SensorMqttClient
+import parking.mqtt.Topic
 
 fun main() {
     val brokerUrl = "tcp://localhost:1883"
     val clientId = "KotlinClient"
-    val topic = "test/topic"
+    val topic = Topic("home", "garage", "0", Action.HEALTH).toString();
     val mqttClient = SensorMqttClient(brokerUrl, clientId)
     mqttClient.subscribe(topic)
     while (true){
