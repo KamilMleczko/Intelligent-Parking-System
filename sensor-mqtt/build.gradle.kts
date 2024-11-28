@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     kotlin("jvm") version "2.0.0"
+    kotlin("plugin.serialization") version "2.0.0"
     `java-library`
     application
 }
@@ -19,6 +20,7 @@ repositories {
 }
 dependencies {
     api("org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5")
+    api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
 }
 
 tasks.test {
