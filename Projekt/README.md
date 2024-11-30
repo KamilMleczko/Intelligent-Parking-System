@@ -1,11 +1,23 @@
 ESP-IDF template app
 ====================
 
-This is a template application to be used with [Espressif IoT Development Framework](https://github.com/espressif/esp-idf).
+In order to provide wifi / mqtt server credentials, create a `main/credentials.h` file.
+This file shall look like so:
 
-Please check [ESP-IDF docs](https://docs.espressif.com/projects/esp-idf/en/latest/get-started/index.html) for getting started instructions.
+```C
+#ifndef CREDENTIALS_H
+#define CREDENTIALS_H
 
-*Code in this repository is in the Public Domain (or CC0 licensed, at your option.)
-Unless required by applicable law or agreed to in writing, this
-software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-CONDITIONS OF ANY KIND, either express or implied.*
+#define WIFI_SSID ""
+#define WIFI_PASS ""
+#define MQTT_BROKER_URI ""
+#define MQTT_USERNAME ""
+#define MQTT_PASSWORD ""
+// mqtt topic schema: organisation/location/spotId/action.
+#define MQTT_TOPIC_PREFIX "home/garage/0/"
+
+#endif
+```
+
+In order to provide mqtt config for kotlin client fill
+`sensor-mqtt/config/mqtt.properties` according to specification in `sensor-mqtt/config/mqtt.example.properties`.
