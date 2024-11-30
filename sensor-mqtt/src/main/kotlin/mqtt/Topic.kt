@@ -8,6 +8,7 @@ enum class Action(val value: String) {
 }
 /**
  *  Class representing MQTT Topic.
+ *  The topic is formatted like so: organisation/location/spotId/action
  *  Parameters represent topic groups.
  *  @param organisation - top level topic group, organisation.
  *  @param location - location withing organisation

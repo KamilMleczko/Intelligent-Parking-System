@@ -1,19 +1,17 @@
-version: '3.9'
-
 services:
   mosquitto:
-    network_mode: host
+    # network_mode: host
     image: eclipse-mosquitto:latest
     ports:
-      - "1883:1883" # MQTT port
-    #      - "9001:9001" # WebSocket port
+      - "192.168.56.1:1883:1883" # MQTT port
+      - "192.168.56.1:9001:9001" # WebSocket port
     volumes:
       - ./config:/mosquitto/config # Mount your configuration files
 #      - ./data:/mosquitto/data     # Optional: Persist data
 #      - ./log:/mosquitto/log       # Optional: Persist logs
-  parking:
-    network_mode: host
-    build:
-      context: .
-    depends_on:
-      - mosquitto
+  # parking:
+  #   # network_mode: host
+  #   build:
+  #     context: .
+  #   depends_on:
+  #     - mosquitto
