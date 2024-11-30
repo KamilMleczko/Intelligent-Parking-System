@@ -5,12 +5,8 @@ import kotlinx.serialization.json.*
 
 @Serializable
 data class Health(
-    val battery: Float
-) {
-    init {
-        require(battery in 0.0..100.0) { "Battery must be within valid range (0.0 to 100.0)" }
-    }
-}
+    val online: Boolean
+)
 
 @Serializable
 data class Event(
