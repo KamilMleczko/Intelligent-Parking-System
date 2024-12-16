@@ -6,6 +6,7 @@ idf_component_register(
         main.c
         mqtt_utils.c
         wifi.c
+        nvs_manager.c
     INCLUDE_DIRS        # optional, add here public include directories
     PRIV_INCLUDE_DIRS   # optional, add here private include directories
     REQUIRES 
@@ -13,6 +14,7 @@ idf_component_register(
         nvs_flash
         driver
         esp_wifi
+        wifi_provisioning
         esp_netif
     PRIV_REQUIRES       # optional, list the private requirements
     EMBED_TXTFILES server_root_cert.pem
