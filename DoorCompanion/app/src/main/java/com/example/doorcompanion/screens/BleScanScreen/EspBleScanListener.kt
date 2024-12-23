@@ -1,15 +1,15 @@
-package com.example.doorcompanion
+package com.example.doorcompanion.screens.BleScanScreen
 
 import android.Manifest
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.le.ScanResult
 import android.content.Context
 import android.content.pm.PackageManager
-import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import com.espressif.provisioning.listeners.BleScanListener
-import java.lang.Exception
-
+import com.example.doorcompanion.BleDevice
+import com.example.doorcompanion.findActivity
+import com.example.doorcompanion.toastNotify
 
 
 class EspBleScanListener(
@@ -19,16 +19,15 @@ class EspBleScanListener(
 
 
     override fun scanCompleted() {
-
-        toastNotify(context,"Scan completed!")
+        toastNotify(context, "Scan completed!")
     }
 
     override fun scanStartFailed() {
-        toastNotify(context,"Scan failed")
+        toastNotify(context, "Scan failed")
     }
 
     override fun onFailure(e: Exception?) {
-        toastNotify(context,"Scan failed")
+        toastNotify(context, "Scan failed")
     }
 
     override fun onPeripheralFound(device: BluetoothDevice, scanResult: ScanResult) {
@@ -47,8 +46,9 @@ class EspBleScanListener(
             )
         }
         val uuids = scanResult.scanRecord?.serviceUuids
+
         if (uuids != null && uuids.size > 0) {
-            onDeviceFound(BleDevice(device, uuids[0].toString()));
+            onDeviceFound(BleDevice(device, uuids[0].toString()))
         }
     }
 }
