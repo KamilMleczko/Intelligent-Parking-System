@@ -6,7 +6,6 @@ idf_component_register(
         main.c
         mqtt_utils.c
         wifi.c
-        nvs_manager.c
     INCLUDE_DIRS        # optional, add here public include directories
     PRIV_INCLUDE_DIRS   # optional, add here private include directories
     REQUIRES 
