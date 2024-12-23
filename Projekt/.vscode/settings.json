@@ -1,6 +1,6 @@
 {
   "idf.adapterTargetName": "esp32",
-  "idf.portWin": "COM6",
+  "idf.portWin": "COM5",
   "idf.flashType": "UART",
   "files.associations": {
     "*.ign": "xml",
@@ -44,7 +44,8 @@
     "credentials.h": "c",
     "scheme_ble.h": "c",
     "manager.h": "c",
-    "esp_bt.h": "c"
+    "esp_bt.h": "c",
+    "netdb.h": "c"
   },
   // "terminal.integrated.defaultProfile.windows": "Command Prompt",
   "editor.tabSize": 2

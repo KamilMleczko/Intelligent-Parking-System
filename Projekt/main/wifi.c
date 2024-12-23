@@ -31,7 +31,6 @@
 #include "lwip/sys.h"      //system applications
 #include "utils.h"
 #include "wifi.h"
-#include "nvs_manager.h"
 
 #define WIFI_DIODE 17
 
@@ -64,17 +63,6 @@ static void get_device_service_name(char* service_name, size_t max) {
            eth_mac[4], eth_mac[5]);
 }
 
-void retrieve_and_log_wifi_credentials() {
-  // unused will remove
-    wifi_sta_config_t wifi_config;
-
-    if (read_wifi_credentials_from_nvs(&wifi_config)) {
-        ESP_LOGI(LOG_WIFI, "Stored SSID: %s", (char*)wifi_config.ssid);
-        ESP_LOGI(LOG_WIFI, "Stored Password: %s", (char*)wifi_config.password);
-    } else {
-        ESP_LOGW(LOG_WIFI, "No WiFi credentials found in NVS.");
-    }
-}
 
 static void wifi_provisioning_event_handler(void* arg,
                                             esp_event_base_t event_base,
@@ -110,8 +98,8 @@ static void wifi_provisioning_event_handler(void* arg,
         esp_wifi_connect();
         break;
       case WIFI_PROV_END:
-        ESP_LOGI(LOG_PROV, "Provisioning ended but service will continue running");
-        // wifi_prov_mgr_deinit();
+        // ESP_LOGI(LOG_PROV, "Provisioning ended but service will continue running");
+        wifi_prov_mgr_deinit();
         break;
       default:
         break;
@@ -265,11 +253,9 @@ void init_wifi(void) {
            (char*)wifi_config.sta.ssid, (char*)wifi_config.sta.password);
 
   start_wifi_provisioning();
-  // TODO make it more robust. Current implementation is a disgrace.
-  vTaskDelay(pdMS_TO_TICKS(20 * 1000)); // wait for 1 min
+  vTaskDelay(pdMS_TO_TICKS(90 * 1000)); // wait for 1.5 min for provisioning.
   if (!got_new_wifi_credentials){
     ESP_ERROR_CHECK(wifi_prov_mgr_is_provisioned(&provisioned));
-    ESP_LOGI(LOG_WIFI, "No new WiFi credentials received. are we provisioned, though? %s", provisioned ? "yes" : "no");
     esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
     init_sta();
     esp_wifi_connect();
