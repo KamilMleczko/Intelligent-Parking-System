@@ -27,6 +27,8 @@
 #include "lwip/sys.h"      //system applications
 
 #include "credentials.h"
+#include <wifi_provisioning/manager.h>
+#include <wifi_provisioning/scheme_ble.h>
 
 #include <time.h>
 #ifndef WIFI_H
@@ -36,6 +38,8 @@ extern bool is_connected_to_wifi;
 
 #define TAG "HTTP_GET"
 
+void start_wifi_provisioning(void);
+void init_wifi_prov_mgr(void);
 void wifi_diode_blink(void);
 
 void try_connecting_to_wifi(void);
@@ -44,5 +48,7 @@ void wifi_event_handler(void* event_handler_arg, esp_event_base_t event_base, in
 
 void wifi_reconnect_task(void *pvParameters);
 
-void setup_wifi();
+void init_wifi(void);
+
+
 void get_site_html(const char *server_name);

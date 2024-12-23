@@ -1,169 +1,264 @@
 #include <stdbool.h>
-#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h> 
+#include <string.h>
+#include <unistd.h>
 
-//miscellaneous
+// miscellaneous
 #include "driver/gpio.h"
-#include "freertos/FreeRTOS.h" //delay,mutexx,semphr i rtos
+#include "freertos/FreeRTOS.h"  //delay,mutexx,semphr i rtos
 #include "freertos/task.h"
-#include "nvs_flash.h" //non volatile storage
+#include "nvs_flash.h"  //non volatile storage
 
-//biblioteki esp
+// biblioteki esp
+#include "esp_event.h"  //wifi event
+#include "esp_log.h"    //pokazywanie logów
 #include "esp_system.h"
-#include "esp_wifi.h" //wifi functions and operations
-#include "esp_log.h" //pokazywanie logów
-#include "esp_event.h" //wifi event
-//do zad2 lab1
+#include "esp_wifi.h"  //wifi functions and operations
+// do zad2 lab1
 #include "esp_err.h"
 #include "esp_netif.h"
 #include "esp_tls.h"
 
-//light weight ip (TCP IP)
-#include "lwip/sockets.h" //sockets
-#include "lwip/netdb.h" 
-#include "lwip/err.h" //error handling
-#include "lwip/sys.h" //system applications
+// light weight ip (TCP IP)
+#include <wifi_provisioning/manager.h>
+#include <wifi_provisioning/scheme_ble.h>
 
 #include "credentials.h"
-
+#include "lwip/err.h"  //error handling
+#include "lwip/netdb.h"
+#include "lwip/sockets.h"  //sockets
+#include "lwip/sys.h"      //system applications
+#include "utils.h"
 #include "wifi.h"
 
-#define TAG "HTTP_GET"
 #define WIFI_DIODE 17
 
 bool is_connected_to_wifi = false;
 bool wifi_setup_done = false;
+bool got_new_wifi_credentials = false;
 
-void wifi_diode_blink(void){
-    gpio_set_level(GPIO_NUM_17,1); 
-    vTaskDelay(100);
-    gpio_set_level(GPIO_NUM_17, 0);
+TaskHandle_t wifi_reconnect_task_handle = NULL;
+
+void wifi_diode_blink(void) {
+  gpio_set_level(WIFI_DIODE, 1);
+  vTaskDelay(pdMS_TO_TICKS(100));
+  gpio_set_level(WIFI_DIODE, 0);
+  vTaskDelay(100);
 }
 
-void try_connecting_to_wifi(void){
-    assert (wifi_setup_done);
-    esp_wifi_connect();
-    while (!is_connected_to_wifi) {
-        wifi_diode_blink();
+void init_sta(void) {
+  ESP_LOGI(LOG_WIFI, "Initializing station mode");
+  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+  ESP_ERROR_CHECK(esp_wifi_start());
+}
+
+static void get_device_service_name(char* service_name, size_t max) {
+  uint8_t eth_mac[6];
+  const char* ssid_prefix = "PROV_";
+  esp_wifi_get_mac(WIFI_IF_STA, eth_mac);
+  // the 3rd arg is a string format, %02X means 2 digits, 0 padded, hex
+  // so these are just 6 hex digits
+  snprintf(service_name, max, "%s%02X%02X%02X", ssid_prefix, eth_mac[3],
+           eth_mac[4], eth_mac[5]);
+}
+
+
+static void wifi_provisioning_event_handler(void* arg,
+                                            esp_event_base_t event_base,
+                                            int event_id, void* event_data) {
+  if (event_base == WIFI_PROV_EVENT) {
+    switch (event_id) {
+      case WIFI_PROV_START:
+        ESP_LOGI(LOG_PROV, "Provisioning started");
+        break;
+      case WIFI_PROV_CRED_RECV: {
+        wifi_sta_config_t* wifi_sta_cfg = (wifi_sta_config_t*)event_data;
+        ESP_LOGI(LOG_PROV,
+                 "Received Wi-Fi credentials"
+                 "\n\tSSID     : %s\n\tPassword : %s",
+                 (const char*)wifi_sta_cfg->ssid,
+                 (const char*)wifi_sta_cfg->password);
+        break;
+      }
+      case WIFI_PROV_CRED_FAIL: {
+        wifi_prov_sta_fail_reason_t* reason =
+            (wifi_prov_sta_fail_reason_t*)event_data;
+        ESP_LOGE(LOG_PROV,
+                 "Provisioning failed!\n\tReason : %s"
+                 "\n\tPlease reset to factory and retry provisioning",
+                 (*reason == WIFI_PROV_STA_AUTH_ERROR)
+                     ? "Wi-Fi station authentication failed"
+                     : "Wi-Fi access-point not found");
+        break;
+      }
+      case WIFI_PROV_CRED_SUCCESS:
+        ESP_LOGI(LOG_PROV, "Provisioning successful");
+        got_new_wifi_credentials = true;
         esp_wifi_connect();
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        break;
+      case WIFI_PROV_END:
+        // ESP_LOGI(LOG_PROV, "Provisioning ended but service will continue running");
+        wifi_prov_mgr_deinit();
+        break;
+      default:
+        break;
     }
-}
-
-void wifi_event_handler(void* event_handler_arg, esp_event_base_t event_base, int32_t event_id, void* event_data){
-	if(event_id == WIFI_EVENT_STA_START){
-	  printf("WIFI CONNECTING....\n");
-	}
-	
-	else if (event_id == WIFI_EVENT_STA_CONNECTED){
-	  is_connected_to_wifi = true;
-	}
-	
-	else if (event_id == WIFI_EVENT_STA_DISCONNECTED){
-    is_connected_to_wifi = false;
-    printf("WiFi lost connection\n");
-    xTaskCreate(&wifi_reconnect_task, "wifi_reconnect_task", 2048, NULL, 5, NULL);
-	}
-	else if (event_id == IP_EVENT_STA_GOT_IP)
-	{
-	  printf("Wifi got IP...\n\n");
-	}
-}
-
-void wifi_reconnect_task(void *pvParameters) {
-    try_connecting_to_wifi();
-    vTaskDelete(NULL);
+  }
 }
 
 
-void setup_wifi(){
-	esp_netif_init(); //network interface initialization
-	esp_event_loop_create_default(); //responsible for handling and dispatching events
-	esp_netif_create_default_wifi_sta(); //necessary data structs for wifi station interface
-	wifi_init_config_t wifi_initiation = WIFI_INIT_CONFIG_DEFAULT();//wifi_init_config struct (defaultowe wartosci)
-	esp_wifi_init(&wifi_initiation); //wifi initialised 
-	
-	esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL);//register event handler register dla wifi event
-	esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, wifi_event_handler, NULL);//register event handler dla ip event
-	wifi_config_t wifi_configuration = { //struct wifi_config_t var wifi_configuration
-		.sta= {
-		    .ssid = "",
-		    .password= "", 
-		  }
-	};
-	strcpy((char*)wifi_configuration.sta.ssid,WIFI_SSID); // kopiowanie do wifi_configuration struct
-	strcpy((char*)wifi_configuration.sta.password,WIFI_PASS); //ssid i password zadeklarowane narazie w kodzie 
-	
-	esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_configuration);// configi dla eventu ESP_IF_WIFI_STA
-	esp_wifi_start();//start connection 
-	esp_wifi_set_mode(WIFI_MODE_STA);//station mode selected
-    wifi_setup_done = true;
+
+void start_wifi_provisioning(void) {
+  ESP_LOGI(LOG_WIFI, "Starting WiFi provisioning");
+  // PROV_XXXXXX -> 11 chars. Last 6 are from MAC address
+  char service_name[11];
+  get_device_service_name(service_name,
+                          sizeof(service_name) / sizeof(service_name[0]));
+  const char* pop = "abcd1234";
+
+  wifi_prov_security_t security = WIFI_PROV_SECURITY_1;
+  uint8_t custom_service_uuid[] = {
+      /* LSB <---------------------------------------
+       * ---------------------------------------> MSB */
+      0xb4, 0xdf, 0x5a, 0x1c, 0x3f, 0x6b, 0xf4, 0xbf,
+      0xea, 0x4a, 0x82, 0x03, 0x04, 0x90, 0x1a, 0x02,
+  };
+
+  wifi_prov_scheme_ble_set_service_uuid(custom_service_uuid);
+  ESP_ERROR_CHECK(
+    wifi_prov_mgr_start_provisioning(security, pop, service_name, NULL)
+  );
+  esp_event_handler_register(
+    WIFI_PROV_EVENT, 
+    ESP_EVENT_ANY_ID,
+    &wifi_provisioning_event_handler, 
+    NULL
+  );
+
+  ESP_LOGI(LOG_WIFI, "WiFi provisioning started");
 }
 
-void get_site_html(const char *server_name) {
-    const char *REQUEST = "GET / HTTP/1.0\r\n"
-                          "Host: %s\r\n"
-                          "User-Agent: esp-idf/1.0 esp32\r\n"
-                          "\r\n";
 
-    char request_buffer[256];
-    snprintf(request_buffer, sizeof(request_buffer), REQUEST, server_name); //tworzy pełne zapytanie
 
-    struct addrinfo hints; //do funckji getaddrinfo() (zawiera preferencje dotyczące tworzenia połączenia sieciowego.)
-    struct addrinfo *res; //wsakznik na strukture getaddrinfo (do zwalniania pamięci)
-    int sockfd; //deskryptor gniazda(socketu)
-    char recv_buffer[1024]; //bufor na dane
+void wifi_event_handler(void* event_handler_arg, esp_event_base_t event_base,
+                        int32_t event_id, void* event_data) {
+  if (event_base == WIFI_EVENT) {
+    switch (event_id) {
+      case WIFI_EVENT_STA_START:
+        ESP_LOGI(LOG_WIFI, "WIFI_EVENT_STA_START");
+        esp_wifi_connect();
+        if (wifi_reconnect_task_handle != NULL) {
+          vTaskDelete(wifi_reconnect_task_handle);
+          wifi_reconnect_task_handle = NULL;
+        }
+        break;
+      case WIFI_EVENT_STA_CONNECTED:
+        ESP_LOGI(LOG_WIFI, "WIFI_EVENT_STA_CONNECTED");
 
-    //Konfiguracja adresu serwera
-    memset(&hints, 0, sizeof(hints)); // Inicjalizacja struktury
-    hints.ai_family = AF_INET; // Uzycie IPv4
-    hints.ai_socktype = SOCK_STREAM; // Uzycie TCP
-
-    int err = getaddrinfo(server_name, "80", &hints, &res);
-    if (err != 0 || res == NULL) {
-
-        ESP_LOGE(TAG, "Błąd przy rozwiązywaniu nazwy serwera: %s", strerror(err));
-        return;
+        break;
+      case WIFI_EVENT_STA_DISCONNECTED:
+        ESP_LOGI(LOG_WIFI, "WIFI_EVENT_STA_DISCONNECTED");
+        is_connected_to_wifi = false;
+        if (wifi_reconnect_task_handle == NULL) {
+          xTaskCreate(&wifi_reconnect_task, "wifi_reconnect_task", 4096, NULL, 5,
+                      &wifi_reconnect_task_handle);
+        }
+        break;
+      default:
+        break;
     }
-
-    //Nawiązanie połączenia TCP
-    sockfd = socket(res->ai_family, res->ai_socktype, 0);
-    if (sockfd < 0) {
-        ESP_LOGE(TAG, "Błąd przy tworzeniu socketu");
-        freeaddrinfo(res);
-        return;
+  } else if (event_base == IP_EVENT) {
+    switch (event_id) {
+      case IP_EVENT_STA_GOT_IP:
+        ESP_LOGI(LOG_WIFI, "IP_EVENT_STA_GOT_IP");
+        is_connected_to_wifi = true;
+        break;
+      default:
+        break;
     }
+  }
+}
 
-    if (connect(sockfd, res->ai_addr, res->ai_addrlen) != 0) {
-        ESP_LOGE(TAG, "Błąd przy łączeniu się z serwerem");
-        close(sockfd);
-        freeaddrinfo(res);
-        return;
+void wifi_reconnect_task(void* pvParameters) {
+  esp_wifi_connect();
+  while (true){
+    if (!is_connected_to_wifi) {
+      ESP_LOGI(LOG_WIFI, "Reconnecting to WiFi");
+      esp_wifi_connect();
     }
+    vTaskDelay(pdMS_TO_TICKS(1000));
+  }
+  vTaskDelete(NULL);
+}
 
-    //Zwolnienie struktury adresu
-    freeaddrinfo(res);
+void init_wifi_services(void) {
+  ESP_LOGI(LOG_WIFI, "Initializing WiFi and TCP");
+  ESP_ERROR_CHECK(esp_netif_init());
+  ESP_ERROR_CHECK(esp_event_loop_create_default());
+  esp_netif_create_default_wifi_sta();
 
-    //Wysłanie zapytania GET
-    if (write(sockfd, request_buffer, strlen(request_buffer)) < 0) {
-        ESP_LOGE(TAG, "Błąd przy wysyłaniu zapytania");
-        close(sockfd);
-        return;
-    }
+  wifi_init_config_t wifi_initiation = WIFI_INIT_CONFIG_DEFAULT();
+  ESP_ERROR_CHECK(esp_wifi_init(&wifi_initiation));
+  ESP_LOGI(LOG_WIFI, "WiFi initialized");
+}
 
-    //Odbiór i wypisanie odpowiedzi
-    int len;
-    while ((len = read(sockfd, recv_buffer, sizeof(recv_buffer) - 1)) > 0) {
-        recv_buffer[len] = 0;  // Dodanie znaku końca stringa (ten sam efekt co \0)
-        printf("%s", recv_buffer);  // Wypisanie odebranej treści
-    }
+void initialize_wifi_event_handlers(void) {
+  ESP_LOGI(LOG_WIFI, "Initializing event handlers");
+  ESP_ERROR_CHECK(esp_event_handler_register(
+    WIFI_EVENT, 
+    ESP_EVENT_ANY_ID,
+    &wifi_event_handler, 
+    NULL
+    )
+  );
+  ESP_ERROR_CHECK(esp_event_handler_register(
+    IP_EVENT, 
+    IP_EVENT_STA_GOT_IP,
+    &wifi_event_handler, 
+    NULL
+    )
+  );
+  // Duplicate event handler registration removed
+  ESP_LOGI(LOG_WIFI, "Event handlers initialized");
+}
 
-    if (len < 0) {
-        ESP_LOGE(TAG, "Błąd przy odbiorze danych");
-    }
+void initialize_wifi_provider_manager(void) {
+  ESP_LOGI(LOG_PROV, "Initializing WiFi provisioning manager");
+  wifi_prov_mgr_config_t config = {
+      .scheme = wifi_prov_scheme_ble,
+      .scheme_event_handler = WIFI_PROV_SCHEME_BLE_EVENT_HANDLER_FREE_BTDM,
+      // .scheme_event_handler = WIFI_PROV_EVENT_HANDLER_NONE,
+  };
+  ESP_ERROR_CHECK(wifi_prov_mgr_init(config));
+  ESP_LOGI(LOG_PROV, "WiFi provisioning manager initialized");
+}
 
-    //Zamknięcie połączenia
-    close(sockfd);
+void background_wifi_provisioning(){
+  start_wifi_provisioning();
+  while (true){
+    vTaskDelay(pdMS_TO_TICKS(1000));
+  }
+}
+
+void init_wifi(void) {
+  init_wifi_services();
+  initialize_wifi_event_handlers();
+  initialize_wifi_provider_manager();
+  bool provisioned = false;
+
+  wifi_config_t wifi_config;
+  esp_wifi_get_config(WIFI_IF_STA, &wifi_config);
+  ESP_LOGI(LOG_WIFI, "Current WiFi configuration: SSID: %s, Password: %s",
+           (char*)wifi_config.sta.ssid, (char*)wifi_config.sta.password);
+
+  start_wifi_provisioning();
+  vTaskDelay(pdMS_TO_TICKS(90 * 1000)); // wait for 1.5 min for provisioning.
+  if (!got_new_wifi_credentials){
+    ESP_ERROR_CHECK(wifi_prov_mgr_is_provisioned(&provisioned));
+    esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
+    init_sta();
+    esp_wifi_connect();
+  }
+  
 }

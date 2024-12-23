@@ -74,6 +74,7 @@ void mqtt_publish_status(esp_mqtt_client_handle_t client,
   esp_mqtt_client_publish(client, MQTT_TOPIC_STATUS, buffer, 0, 1, 0);
 }
 
+
 void mqtt_event_handler(void* handler_args,
                         esp_event_base_t base,
                         int32_t event_id,

@@ -39,7 +39,14 @@
     "mqtt_utils.h": "c",
     "esp_ping.h": "c",
     "time.h": "c",
-    "esp_netif.h": "c"
+    "esp_netif.h": "c",
+    "sockets.h": "c",
+    "credentials.h": "c",
+    "scheme_ble.h": "c",
+    "manager.h": "c",
+    "esp_bt.h": "c",
+    "netdb.h": "c"
   },
   // "terminal.integrated.defaultProfile.windows": "Command Prompt",
+  "editor.tabSize": 2
 }

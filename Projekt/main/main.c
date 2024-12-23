@@ -34,7 +34,13 @@
 #include "esp_sntp.h"
 #include <esp_netif_sntp.h>
 
+#include <wifi_provisioning/manager.h>
+#include <wifi_provisioning/scheme_ble.h>
 
+#include "esp_bt.h"
+#include "utils.h"
+
+TaskHandle_t mqtt_task_handle = NULL;
 
 /**
  * @brief Function that configures time settings using SNTP.
@@ -69,30 +75,33 @@ void mqtt_task(void *pvParameters) {
         vTaskDelay(pdMS_TO_TICKS(5000)); // Delay for 1 second
     }
 }
-// void wifi_task(void *pvParameters) {
-//     while (1) {
-//         // Simulate WiFi connection check
-//         wifi_connection(); // mutates is_connected_to_wifi
-//         if (is_connected_to_wifi) {
 
-//             xSemaphoreGive(wifi_semaphore);
-//         }
-//         vTaskDelay(pdMS_TO_TICKS(5000));
-//     }
-// }
 
-void initial_wifi_connection(void){
-	setup_wifi();
-	printf("Won't proceed further without wifi Connection\n");
-	try_connecting_to_wifi();
+
+void nvs_init(){
+	esp_err_t ret = nvs_flash_init();
+	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+		ESP_ERROR_CHECK(nvs_flash_erase());
+		ESP_ERROR_CHECK(nvs_flash_init());
+	}
 }
+
+void init_hw_services(void){
+	ESP_LOGI(LOG_HW, "Initializing hardware services");
+	gpio_set_direction(GPIO_NUM_17, GPIO_MODE_OUTPUT);
+	nvs_init();
+	ESP_LOGI(LOG_HW, "Hardware services initialized");
+}
+
+
 
 void app_main(void)
 {
-	gpio_set_direction(GPIO_NUM_17, GPIO_MODE_OUTPUT); //zewnetrzna dioda
-	nvs_flash_init(); 
-	initial_wifi_connection();
+	init_hw_services();
+	init_wifi();
 	configure_time();
 	esp_mqtt_client_handle_t client = mqtt_connect(MQTT_BROKER_URI, MQTT_USERNAME, MQTT_PASSWORD);
-	xTaskCreate(&mqtt_task, "mqtt_task", 4096, client, 5, NULL);
+	if (mqtt_task_handle == NULL){
+		xTaskCreate(&mqtt_task, "mqtt_task", 4096, client, 5, &mqtt_task_handle);
+	}
 }
