@@ -42,7 +42,64 @@
 
 TaskHandle_t mqtt_task_handle = NULL;
 
-/**
+//oled lib
+#include "my_ssd1306.h"
+#define tag "SSD1306"
+
+void buzz(){
+	gpio_set_level(GPIO_NUM_19,1);
+    vTaskDelay(10);
+    gpio_set_level(GPIO_NUM_19, 0);
+}
+
+void oled_start(){
+	const ssd1306_config_t config = create_config();//config dla OLED //config values can be changed config vals via sdkconfig file
+    i2c_handler_t i2c_handler; //handler struct for i2c
+    oled_display_t oled_display; // oled display handler
+	i2c_master_init(&config, &i2c_handler, &oled_display);//init for master bus and device
+	#if CONFIG_FLIP
+	oled_display.flip_display = true;
+	#endif
+	oled_cmd_init(&oled_display, &config, &i2c_handler); //init of oled commands
+	clear_oled_display_struct(&oled_display); //clear data in struct that represents oled screen
+	clear_screen(&config, &oled_display, &i2c_handler);
+	set_brightness(&config, &i2c_handler, 132);
+
+
+    show_text(&config,  &oled_display,  &i2c_handler, 0, "Hello new day !");
+    vTaskDelay(10000/ config.ticks_to_wait);
+    clear_page(&config, &oled_display, &i2c_handler, 0);
+
+    show_text_large(&config, &oled_display, &i2c_handler, 3, "Hello");
+	vTaskDelay(10000/ config.ticks_to_wait);
+    clear_screen(&config, &oled_display, &i2c_handler);
+
+    show_text(&config,  &oled_display,  &i2c_handler, 0, "Current Count:");
+
+	gpio_set_direction(GPIO_NUM_19, GPIO_MODE_OUTPUT); //buzzer
+
+	char buffer[10];
+    for (int i = 0 ; i < 50 ; i++){
+		snprintf(buffer, sizeof(buffer), "  %d ", i);
+		show_text_large(&config, &oled_display, &i2c_handler, 3, buffer);
+		if (i==15){
+			set_brightness(&config, &i2c_handler, 255);
+		}
+		//buzz(); //before uncommenting check if your buzzer is on GPIO 19 !!! 
+		vTaskDelay(10000/ config.ticks_to_wait);
+	}
+	clear_large_page(&config, &oled_display, &i2c_handler, 3); //clearing count value
+	clear_page(&config, &oled_display, &i2c_handler, 0);  //clearing "Current Count"
+	vTaskDelay(50000/ config.ticks_to_wait);
+	show_text(&config,  &oled_display,  &i2c_handler, 0, "Goodbye   ");
+	show_text(&config,  &oled_display,  &i2c_handler, 3, "   Goodbye   ");
+	show_text(&config,  &oled_display,  &i2c_handler, 7, "      Goodbye");
+	vTaskDelay(30000/ config.ticks_to_wait);
+	clear_screen(&config, &oled_display, &i2c_handler);
+}
+
+
+ /*
  * @brief Function that configures time settings using SNTP.
  * It sets timezone to CEST. 
  * @warning it's a blocking call. It waits for 10s for SNTP response.
@@ -77,7 +134,6 @@ void mqtt_task(void *pvParameters) {
 }
 
 
-
 void nvs_init(){
 	esp_err_t ret = nvs_flash_init();
 	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -104,4 +160,5 @@ void app_main(void)
 	if (mqtt_task_handle == NULL){
 		xTaskCreate(&mqtt_task, "mqtt_task", 4096, client, 5, &mqtt_task_handle);
 	}
+	//oled_start(); //showcase of oled library
 }
