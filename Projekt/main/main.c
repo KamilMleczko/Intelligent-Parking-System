@@ -167,6 +167,8 @@ float get_sensor_dist(const ultrasonic_sensor_t* sensor, const ssd1306_config_t*
 
 void main_loop(void *pvParameters)
 {
+
+	esp_mqtt_client_handle_t client = mqtt_connect(MQTT_BROKER_URI, MQTT_USERNAME, MQTT_PASSWORD);
 	//SENSOR INIT
 	ultrasonic_sensor_t sensor = { //FIRST SENSOR
         .trigger_pin = TRIGGER_GPIO,
@@ -240,11 +242,14 @@ void main_loop(void *pvParameters)
     int count = 0;
     bool was_counted_first =false;
     bool was_counted_second =false ;
+
+    bool is_first_counting = true;
+
     //gpio_set_direction(GPIO_NUM_19, GPIO_MODE_OUTPUT); //before uncommenting check if your buzzer is on GPIO 19 !!!
 	while (true)
 	    {
 			snprintf(buffer_count, sizeof(buffer_count), "  %d ", count);
-			show_text_large(&config, &oled_display, &i2c_handler, 2, buffer_count);
+			if (is_first_counting){show_text_large(&config, &oled_display, &i2c_handler, 2, buffer_count);}
 	        float distance1;
 	        float distance2;
 	        esp_err_t res1 = ultrasonic_measure(&sensor, MAX_DISTANCE_CM, &distance1);
@@ -297,22 +302,40 @@ void main_loop(void *pvParameters)
 			float diff_first = fabs(dist_first - distance1*100);
 			float diff_second = fabs(dist_second - distance2*100);
 
-	        if (diff_first > error_margin_first ){
+	        if (diff_first > error_margin_first && is_first_counting){
 	        	if (!was_counted_first){
 					//buzz(); //before uncommenting check if your buzzer is on GPIO 19 !!!
-					count+=1;
+	    			count+=1;
+					EventType event =  CAR_PARKED;
+					mqtt_publish_event(client, event, time(NULL));
 					snprintf(buffer_count, sizeof(buffer_count), "  %d ", count);
 					clear_large_page(&config, &oled_display, &i2c_handler, 2); //clearing
 					show_text_large(&config, &oled_display, &i2c_handler, 2, buffer_count);
 					was_counted_first = true;
+
+					if(count == 30){
+						is_first_counting = false;
+						clear_page(&config, &oled_display, &i2c_handler, 0);
+					    show_text(&config,  &oled_display,  &i2c_handler, 0, "Too many visitors");
+					    clear_large_page(&config, &oled_display, &i2c_handler, 2); //clearing
+					    show_text_large(&config, &oled_display, &i2c_handler, 2, "STOP");
+					}
+
 	        	}
 	        }
 	        else{was_counted_first = false;}
 
 	        if (diff_second > error_margin_second){
 	        	if(!was_counted_second){
+	        		if(count == 30){
+	        			is_first_counting = true;
+	        			clear_page(&config, &oled_display, &i2c_handler, 0);
+	        			show_text(&config,  &oled_display,  &i2c_handler, 0, "Current Count:");
+	        		}
 	        		//buzz(); //before uncommenting check if your buzzer is on GPIO 19 !!
 	        		count-=1;
+	        		EventType event =  CAR_LEFT;
+	        		mqtt_publish_event(client, event, time(NULL));
 	        		snprintf(buffer_count, sizeof(buffer_count), "  %d ", count);
 	        		clear_large_page(&config, &oled_display, &i2c_handler, 2); //clearing
 	        		show_text_large(&config, &oled_display, &i2c_handler, 2, buffer_count);
@@ -325,6 +348,8 @@ void main_loop(void *pvParameters)
 	        snprintf(buffer2, sizeof(buffer2), "%0.04f cm",  distance2*100);
 	        show_text(&config, &oled_display, &i2c_handler, 6, buffer1);
 	        show_text(&config, &oled_display, &i2c_handler, 7, buffer2);
+
+
 	        vTaskDelay(3500/ config.ticks_to_wait);
 	    }
 
@@ -385,7 +410,7 @@ void init_hw_services(void){
 void app_main(void)
 {
 
-	init_hw_services();
+	/*init_hw_services();
 	init_wifi();
 	configure_time();
 	esp_mqtt_client_handle_t client = mqtt_connect(MQTT_BROKER_URI, MQTT_USERNAME, MQTT_PASSWORD);
@@ -393,5 +418,13 @@ void app_main(void)
 		xTaskCreate(&mqtt_task, "mqtt_task", 4096, client, 5, &mqtt_task_handle);
 	}
 	//oled_start(); //showcase of oled library
-	 xTaskCreate(main_loop, "main_loop", configMINIMAL_STACK_SIZE * 6, NULL, 5, NULL);
+	 xTaskCreate(main_loop, "main_loop", configMINIMAL_STACK_SIZE * 6, NULL, 5, NULL);*/
+
+	init_hw_services();
+	init_wifi();
+	configure_time();
+	if (mqtt_task_handle == NULL){
+		xTaskCreate(main_loop, "main_loop", configMINIMAL_STACK_SIZE * 6, NULL, 5, NULL);
+	}
+
 }
