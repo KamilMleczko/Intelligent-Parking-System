@@ -19,3 +19,6 @@ void write_device_name(char* buffer) {
              ssid_prefix);  // Write only the prefix
   }
 }
+char DEVICE_NAME_BUFFER[DEVICE_NAME_LEN];
+char* DEVICE_NAME = DEVICE_NAME_BUFFER;
+void init_device_name(void) { write_device_name(DEVICE_NAME_BUFFER); }

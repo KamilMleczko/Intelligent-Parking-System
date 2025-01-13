@@ -22,10 +22,10 @@ esp_mqtt_client_handle_t mqtt_connect(char* broker_uri, char* username,
                                       char* password);
 
 void serialize_event(char* buffer, const EventType event,
-                     const time_t timestamp);
+                     const time_t timestamp, const int current_people);
 
 void mqtt_publish_event(esp_mqtt_client_handle_t client, const EventType event,
-                        const time_t timestamp);
+                        const time_t timestamp, const int current_people);
 
 void serialize_healthcheck(char* buffer);
 

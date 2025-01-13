@@ -2,19 +2,19 @@ import androidx.lifecycle.ViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 data class Device(
     val pop: String = "",
-    val ssid: String = "",
     val maxPeople: Int = 0,
-    val timestamp: Long = 0L
+    val timestamp: Long = 0L,
+    val name: String = ""
 )
 
 
 class DeviceStatsViewModel : ViewModel() {
     private val _devices = MutableStateFlow<List<Device>>(emptyList())
-    val devices: StateFlow<List<Device>> = _devices
+    val devices = _devices.asStateFlow()
 
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
@@ -22,6 +22,7 @@ class DeviceStatsViewModel : ViewModel() {
     init {
         fetchDevices()
     }
+
 
     private fun fetchDevices() {
         val currentUser = auth.currentUser

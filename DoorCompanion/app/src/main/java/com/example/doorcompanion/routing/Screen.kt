@@ -8,9 +8,16 @@ sealed class Screen {
         val bleDevice: BleDevice
     ) : Screen()
 
-    data object ProvisionSuccess : Screen()
 
     data object Stats : Screen()
+
+    data object Login : Screen()
+
+    data object Signup : Screen()
+
+    data class DeviceSummary(
+        val device: Device
+    ) : Screen()
 
 
 }

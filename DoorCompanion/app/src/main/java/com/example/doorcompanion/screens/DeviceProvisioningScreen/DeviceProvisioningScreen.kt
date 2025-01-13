@@ -11,18 +11,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.doorcompanion.BleDevice
 import com.example.doorcompanion.LoadingSpinner
-import com.example.doorcompanion.routing.Router
 
 @SuppressLint("MissingPermission")
 @Composable
 fun DeviceProvisioningScreen(
     bleDevice: BleDevice,
-    router: Router,
     viewModel: DeviceConnectionViewModel = viewModel()
 ) {
     val connectionStatus = viewModel.connectionStatus.collectAsState().value
     val logs = viewModel.provisioningLogs.collectAsState().value
     val context = LocalContext.current
+
 
     val status = viewModel.status
 
@@ -34,6 +33,8 @@ fun DeviceProvisioningScreen(
             viewModel.disconnect()
         }
     }
+
+
     Text("Provision device")
 
     when (connectionStatus) {
@@ -48,16 +49,18 @@ fun DeviceProvisioningScreen(
 
         ConnectionStatus.CONNECTED -> {
             if (!status.provisionedSuccesfully) {
-                DeviceProvisioningForm { params ->
+                DeviceProvisioningForm(bleDevice) { params ->
                     viewModel.doProvisioning(params)
                 }
             }
         }
     }
+
     ProvisioningLogs(logs)
     if (status.provisionedSuccesfully) {
         AwesomeSuccess()
     }
+    Text("Status: ${connectionStatus.name}")
     Text("Status: ${connectionStatus.name}")
     if (!status.provisionedSuccesfully && status.finishedProvisioning) {
         Button(

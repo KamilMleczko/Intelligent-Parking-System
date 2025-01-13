@@ -1,18 +1,24 @@
 package com.example.doorcompanion.screens.DeviceProvisioningScreen
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import com.espressif.provisioning.DeviceConnectionEvent
 import com.espressif.provisioning.ESPConstants
 import com.espressif.provisioning.ESPDevice
 import com.espressif.provisioning.ESPProvisionManager
 import com.espressif.provisioning.listeners.ProvisionListener
+import com.espressif.provisioning.listeners.ResponseListener
 import com.example.doorcompanion.BleDevice
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
+import java.nio.charset.StandardCharsets
 
 enum class ConnectionStatus {
     CONNECTED,
@@ -134,6 +140,7 @@ class DeviceConnectionViewModel : ViewModel() {
     @Subscribe(threadMode = ThreadMode.MAIN)
     fun onDeviceConnected(event: DeviceConnectionEvent) {
         val eventType = event.eventType
+        espDevice
         when (eventType) {
             // These EVENT_DEVICE_* constants are not part of an enum
             // so I wrap them into my custom type, to make them be of an enum type
@@ -164,14 +171,67 @@ class DeviceConnectionViewModel : ViewModel() {
         status = ProvisioningStatus()
     }
 
+    private fun saveDeviceToFirebase(params: ProvisioningParams) {
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        if (currentUser != null) {
+            val db = Firebase.firestore
+            val userDevicesRef =
+                db.collection("users").document(currentUser.uid).collection("devices")
+
+            val deviceData = mapOf(
+                "name" to params.deviceName,
+                "pop" to params.pop,
+                "maxPeople" to params.maxPeople,
+                "timestamp" to System.currentTimeMillis()
+            )
+
+            userDevicesRef.add(deviceData)
+                .addOnSuccessListener {
+                    Log.i("DOOR", "Device successfully added to user's bound devices.")
+                }
+                .addOnFailureListener { e ->
+                    Log.e("DOOR", "Error adding device to user's bound devices: $e")
+                }
+        } else {
+            Log.e("DOOR", "No authenticated user found. Cannot bind device.")
+        }
+    }
+
     fun doProvisioning(params: ProvisioningParams) {
-        val (pop, ssid, password) = params
+        val (pop, ssid, password, maxPeople, bindUser) = params
         espDevice?.proofOfPossession = pop
-        espDevice?.provision(
-            ssid,
-            password,
-            WifiProvisioningListener()
-        )
+        val maxPeopleAsByteArray = maxPeople.toString().toByteArray(StandardCharsets.UTF_8)
+        if (bindUser) {
+            Log.i("DOOR", "Will bind device!")
+            saveDeviceToFirebase(params)
+        }
+        espDevice?.sendDataToCustomEndPoint(
+            "maxPeople",
+            maxPeopleAsByteArray,
+            object : ResponseListener {
+                override fun onSuccess(returnData: ByteArray?) {
+                    if (returnData != null) {
+                        val cleanData = returnData.takeWhile { it != 0.toByte() }
+                            .toByteArray() // Remove data after null terminator
+                        val decodedString =
+                            java.lang.String(cleanData, StandardCharsets.UTF_8)
+                        Log.i("DOOR", "got data $decodedString")
+
+                    } else {
+                        Log.i("DOOR", "No data received")
+                    }
+                    espDevice?.provision(
+                        ssid,
+                        password,
+                        WifiProvisioningListener()
+                    )
+                }
+
+                override fun onFailure(e: java.lang.Exception?) {
+                    Log.i("DOOR", "error in maxPeopleListener :( ${e}")
+                }
+
+            })
     }
 
     override fun onCleared() {

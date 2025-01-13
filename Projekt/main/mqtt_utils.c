@@ -14,18 +14,16 @@ const char* PERSON_LEFT_MESSAGE = "Person left";
 
 void write_mqtt_topic(char* buffer, const ActionType action) {
   char* prefix = MQTT_TOPIC_PREFIX;
-  char device_name[DEVICE_NAME_LEN];
-  write_device_name(device_name);
 
   switch (action) {
     case HEALTH:
-      snprintf(buffer, MQTT_MSG_BUFFER, "%s/%s/health", prefix, device_name);
+      snprintf(buffer, MQTT_MSG_BUFFER, "%s/%s/health", prefix, DEVICE_NAME);
       break;
     case EVENT:
-      snprintf(buffer, MQTT_MSG_BUFFER, "%s/%s/event", prefix, device_name);
+      snprintf(buffer, MQTT_MSG_BUFFER, "%s/%s/event", prefix, DEVICE_NAME);
       break;
     case STATUS:
-      snprintf(buffer, MQTT_MSG_BUFFER, "%s/%s/status", prefix, device_name);
+      snprintf(buffer, MQTT_MSG_BUFFER, "%s/%s/status", prefix, DEVICE_NAME);
       break;
     default:
       snprintf(buffer, MQTT_MSG_BUFFER, "Unknown topic");
@@ -57,18 +55,19 @@ esp_mqtt_client_handle_t mqtt_connect(char* broker_uri, char* username,
 }
 
 void mqtt_publish_event(esp_mqtt_client_handle_t client, const EventType event,
-                        const time_t timestamp) {
+                        const time_t timestamp, const int current_people) {
   char buffer[MQTT_MSG_BUFFER];
-  serialize_event(buffer, event, timestamp);
+  serialize_event(buffer, event, timestamp, current_people);
+  ESP_LOGI(LOG_MQTT, "Publishing event: %s to %s", buffer, MQTT_TOPIC_EVENT);
   esp_mqtt_client_publish(client, MQTT_TOPIC_EVENT, buffer, 0, 1, 0);
 }
 
 void serialize_event(char* buffer, const EventType event,
-                     const time_t timestamp) {
+                     const time_t timestamp, const int current_people) {
   snprintf(
-      buffer, MQTT_MSG_BUFFER, "event: %s\ntimestamp: %lld",
+      buffer, MQTT_MSG_BUFFER, "event: %s\ntimestamp: %lld\ncurrent_people: %d",
       event == PERSON_ENTERED ? PERSON_ENTERED_MESSAGE : PERSON_LEFT_MESSAGE,
-      timestamp);
+      timestamp, current_people);
 }
 
 void serialize_healthcheck(char* buffer) {
@@ -123,8 +122,7 @@ void mqtt_event_handler(void* handler_args, esp_event_base_t base,
       break;
 
     case MQTT_EVENT_PUBLISHED:
-      snprintf(buffer, MQTT_MSG_BUFFER,
-               "Message published successfully to %s\n", event->topic);
+      snprintf(buffer, MQTT_MSG_BUFFER, "Message published successfully!\n");
       printf("%s\n", buffer);
       break;
 
