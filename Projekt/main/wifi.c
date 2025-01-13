@@ -121,9 +121,6 @@ esp_err_t max_people_endpoint_handler(uint32_t session_id, const uint8_t* inbuf,
 
 void start_wifi_provisioning(void) {
   ESP_LOGI(LOG_WIFI, "Starting WiFi provisioning");
-  // PROV_XXXXXX -> 11 chars. Last 6 are from MAC address
-  char service_name[DEVICE_NAME_LEN];
-  write_device_name(service_name);
   const char* pop = WIFI_PROV_POP;
 
   wifi_prov_security_t security = WIFI_PROV_SECURITY_1;
@@ -136,7 +133,7 @@ void start_wifi_provisioning(void) {
 
   wifi_prov_scheme_ble_set_service_uuid(custom_service_uuid);
   ESP_ERROR_CHECK(
-      wifi_prov_mgr_start_provisioning(security, pop, service_name, NULL));
+      wifi_prov_mgr_start_provisioning(security, pop, DEVICE_NAME, NULL));
 
   wifi_prov_mgr_endpoint_register("maxPeople", max_people_endpoint_handler,
                                   NULL);
@@ -243,7 +240,7 @@ void init_wifi(void) {
            (char*)wifi_config.sta.ssid, (char*)wifi_config.sta.password);
 
   start_wifi_provisioning();
-  vTaskDelay(pdMS_TO_TICKS(90 * 1000));  // wait for 1.5 min for provisioning.
+  vTaskDelay(pdMS_TO_TICKS(60 * 1000));  // wait for 1.5 min for provisioning.
   if (!got_new_wifi_credentials) {
     ESP_ERROR_CHECK(wifi_prov_mgr_is_provisioned(&provisioned));
     esp_wifi_set_config(WIFI_IF_STA, &wifi_config);

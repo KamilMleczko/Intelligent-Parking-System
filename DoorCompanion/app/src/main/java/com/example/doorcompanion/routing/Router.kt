@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 class Router : ViewModel() {
-    private val _screenStack = MutableStateFlow<List<Screen>>(listOf(Screen.BleScan))
+    private val _screenStack = MutableStateFlow<List<Screen>>(listOf(Screen.Login))
 
     val currentScreen: StateFlow<Screen?> = _screenStack
         .map { stack ->

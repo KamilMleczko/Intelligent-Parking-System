@@ -1,8 +1,6 @@
 package com.example.doorcompanion.screens.Auth
 
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
+import Screen
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,30 +23,27 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.doorcompanion.routing.Router
 
-class MainActivity : ComponentActivity() {
-    private lateinit var auth: FirebaseAuth
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        // Initialize Firebase Auth
-        auth = Firebase.auth
-
-        setContent {
-            LoginScreen(auth)
-        }
+fun getLoginScreenText(authState: AuthState): String {
+    return when (authState) {
+        is AuthState.Unauthenticated -> ""
+        is AuthState.Loading -> "Loading..."
+        is AuthState.Authenticated -> ""
+        is AuthState.Error -> authState.message
     }
 }
 
 @Composable
-fun LoginScreen(auth: FirebaseAuth) {
+fun LoginScreen(
+    router: Router,
+    authViewModel: AuthViewModel = viewModel()
+) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var message by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
+    val authState = authViewModel.authState.collectAsState().value
+
 
     Column(
         modifier = Modifier
@@ -82,21 +78,14 @@ fun LoginScreen(auth: FirebaseAuth) {
 
         Button(
             onClick = {
-                isLoading = true
-                auth.signInWithEmailAndPassword(email, password)
-                    .addOnCompleteListener { task ->
-                        isLoading = false
-                        if (task.isSuccessful) {
-                            message = "Login successful!"
-                        } else {
-                            message = task.exception?.message ?: "Login failed."
-                        }
-                    }
+                authViewModel.login(email, password) {
+                    router.navigateTo(Screen.BleScan)
+                }
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading
+            enabled = authState != AuthState.Loading
         ) {
-            if (isLoading) {
+            if (authState == AuthState.Loading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(24.dp),
                     color = MaterialTheme.colorScheme.primary
@@ -109,9 +98,17 @@ fun LoginScreen(auth: FirebaseAuth) {
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = message,
+            text = getLoginScreenText(authState),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.error
         )
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = {
+                router.navigateTo(Screen.Signup)
+            }
+        ) {
+            Text("Don't have an account? Sign Up!")
+        }
     }
 }

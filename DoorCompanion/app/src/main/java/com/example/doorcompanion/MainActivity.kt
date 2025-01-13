@@ -30,20 +30,28 @@ import com.espressif.provisioning.ESPConstants.TransportType
 import com.espressif.provisioning.ESPDevice
 import com.espressif.provisioning.ESPProvisionManager
 import com.example.doorcompanion.routing.Router
+import com.example.doorcompanion.screens.Auth.LoginScreen
+import com.example.doorcompanion.screens.Auth.SignupScreen
 import com.example.doorcompanion.screens.BleScanScreen.BleScanScreen
 import com.example.doorcompanion.screens.DeviceProvisioningScreen.DeviceProvisioningScreen
+import com.example.doorcompanion.screens.DeviceStats.DeviceStatsScreen
+import com.example.doorcompanion.screens.DeviceSummary.DeviceSummaryScreen
 import com.example.doorcompanion.ui.theme.DoorCompanionTheme
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
+
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var manager: ESPProvisionManager
     private lateinit var espDevice: ESPDevice
-
+    private lateinit var auth: FirebaseAuth
 
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        auth = Firebase.auth
         // Create the ESPProvisionManager instance and the ESPDevice here
         manager = ESPProvisionManager.getInstance(this)
         espDevice = manager.createESPDevice(TransportType.TRANSPORT_BLE, SecurityType.SECURITY_1)
@@ -91,6 +99,14 @@ fun AppRoot(
     router: Router = viewModel()
 ) {
     when (val currentScreen = router.currentScreen.collectAsState().value) {
+        is Screen.Login -> {
+            LoginScreen(router = router)
+        }
+
+        is Screen.Signup -> {
+            SignupScreen(router = router)
+        }
+
         is Screen.BleScan -> {
             BleScanScreen(
                 router = router,
@@ -100,12 +116,15 @@ fun AppRoot(
         is Screen.DeviceProvisioning -> {
             DeviceProvisioningScreen(
                 currentScreen.bleDevice,
-                router = router,
             )
         }
 
-        is Screen.ProvisionSuccess -> {
-            
+        is Screen.Stats -> {
+            DeviceStatsScreen(router = router)
+        }
+
+        is Screen.DeviceSummary -> {
+            DeviceSummaryScreen(currentScreen.device)
         }
 
         else -> {

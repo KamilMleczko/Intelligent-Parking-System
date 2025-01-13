@@ -304,7 +304,7 @@ void main_loop(void* pvParameters) {
         buzz();  // before uncommenting check if your buzzer is on GPIO 19 !!!
         count += 1;
         EventType event = PERSON_ENTERED;
-        mqtt_publish_event(client, event, time(NULL));
+        mqtt_publish_event(client, event, time(NULL), count);
         snprintf(buffer_count, sizeof(buffer_count), "  %d ", count);
         clear_large_page(&config, &oled_display, &i2c_handler, 2);  // clearing
         show_text_large(&config, &oled_display, &i2c_handler, 2, buffer_count);
@@ -334,7 +334,7 @@ void main_loop(void* pvParameters) {
         buzz();  // before uncommenting check if your buzzer is on GPIO 19 !!
         count -= 1;
         EventType event = PERSON_LEFT;
-        mqtt_publish_event(client, event, time(NULL));
+        mqtt_publish_event(client, event, time(NULL), count);
         snprintf(buffer_count, sizeof(buffer_count), "  %d ", count);
         clear_large_page(&config, &oled_display, &i2c_handler, 2);  // clearing
         show_text_large(&config, &oled_display, &i2c_handler, 2, buffer_count);
@@ -369,25 +369,6 @@ void configure_time() {
   tzset();
 }
 
-int call_count = 0;
-
-void mqtt_pub_test(esp_mqtt_client_handle_t client) {
-  EventType event = call_count % 2 == 0 ? PERSON_ENTERED : PERSON_LEFT;
-  StatusType status = call_count % 2 == 0 ? OCCUPIED : FREE;
-  mqtt_publish_event(client, event, time(NULL));
-  mqtt_publish_status(client, status);
-  mqtt_publish_healthcheck(client);
-  call_count++;
-}
-
-void mqtt_task(void* pvParameters) {
-  esp_mqtt_client_handle_t client = (esp_mqtt_client_handle_t)pvParameters;
-  while (1) {
-    mqtt_pub_test(client);
-    vTaskDelay(pdMS_TO_TICKS(5000));  // Delay for 1 second
-  }
-}
-
 void nvs_init() {
   esp_err_t ret = nvs_flash_init();
   if (ret == ESP_ERR_NVS_NO_FREE_PAGES ||
@@ -401,6 +382,7 @@ void init_hw_services(void) {
   ESP_LOGI(LOG_HW, "Initializing hardware services");
   gpio_set_direction(GPIO_NUM_17, GPIO_MODE_OUTPUT);
   nvs_init();
+  init_device_name();
   ESP_LOGI(LOG_HW, "Hardware services initialized");
 }
 
