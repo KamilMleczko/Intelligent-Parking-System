@@ -45,7 +45,9 @@
     "scheme_ble.h": "c",
     "manager.h": "c",
     "esp_bt.h": "c",
-    "netdb.h": "c"
+    "netdb.h": "c",
+    "esp_system.h": "c",
+    "utils.h": "c"
   },
   // "terminal.integrated.defaultProfile.windows": "Command Prompt",
   "editor.tabSize": 2

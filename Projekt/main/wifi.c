@@ -6,15 +6,13 @@
 
 // miscellaneous
 #include "driver/gpio.h"
-#include "freertos/FreeRTOS.h"  //delay,mutexx,semphr i rtos
-#include "freertos/task.h"
-#include "nvs_flash.h"  //non volatile storage
-
-// biblioteki esp
-#include "esp_event.h"  //wifi event
-#include "esp_log.h"    //pokazywanie logów
+#include "esp_event.h"
+#include "esp_log.h"
 #include "esp_system.h"
-#include "esp_wifi.h"  //wifi functions and operations
+#include "esp_wifi.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "nvs_flash.h"
 // do zad2 lab1
 #include "esp_err.h"
 #include "esp_netif.h"
@@ -29,6 +27,7 @@
 #include "lwip/netdb.h"
 #include "lwip/sockets.h"  //sockets
 #include "lwip/sys.h"      //system applications
+#include "ultrasonic.h"
 #include "utils.h"
 #include "wifi.h"
 
@@ -52,17 +51,6 @@ void init_sta(void) {
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
   ESP_ERROR_CHECK(esp_wifi_start());
 }
-
-static void get_device_service_name(char* service_name, size_t max) {
-  uint8_t eth_mac[6];
-  const char* ssid_prefix = "PROV_";
-  esp_wifi_get_mac(WIFI_IF_STA, eth_mac);
-  // the 3rd arg is a string format, %02X means 2 digits, 0 padded, hex
-  // so these are just 6 hex digits
-  snprintf(service_name, max, "%s%02X%02X%02X", ssid_prefix, eth_mac[3],
-           eth_mac[4], eth_mac[5]);
-}
-
 
 static void wifi_provisioning_event_handler(void* arg,
                                             esp_event_base_t event_base,
@@ -98,7 +86,8 @@ static void wifi_provisioning_event_handler(void* arg,
         esp_wifi_connect();
         break;
       case WIFI_PROV_END:
-        // ESP_LOGI(LOG_PROV, "Provisioning ended but service will continue running");
+        // ESP_LOGI(LOG_PROV, "Provisioning ended but service will continue
+        // running");
         wifi_prov_mgr_deinit();
         break;
       default:
@@ -107,15 +96,35 @@ static void wifi_provisioning_event_handler(void* arg,
   }
 }
 
+esp_err_t max_people_endpoint_handler(uint32_t session_id, const uint8_t* inbuf,
+                                      ssize_t inlen, uint8_t** outbuf,
+                                      ssize_t* outlen, void* priv_data) {
+  ESP_LOGI(LOG_PROV, "max_people_endpoint_handler");
 
+  if (inbuf) {
+    ESP_LOGI(LOG_PROV, "Received data: %.*s", inlen, (char*)inbuf);
+    int read_ultrasonic_max_people = atoi((char*)inbuf);
+    if (read_ultrasonic_max_people > 0) {
+      save_max_people(read_ultrasonic_max_people);
+    }
+  }
+  char response[] = "SUCCESS";
+  *outbuf = (uint8_t*)strdup(response);
+  if (*outbuf == NULL) {
+    ESP_LOGE(TAG, "System out of memory");
+    return ESP_ERR_NO_MEM;
+  }
+  *outlen = strlen(response) + 1; /* +1 for NULL terminating byte */
+
+  return ESP_OK;
+}
 
 void start_wifi_provisioning(void) {
   ESP_LOGI(LOG_WIFI, "Starting WiFi provisioning");
   // PROV_XXXXXX -> 11 chars. Last 6 are from MAC address
-  char service_name[11];
-  get_device_service_name(service_name,
-                          sizeof(service_name) / sizeof(service_name[0]));
-  const char* pop = "abcd1234";
+  char service_name[DEVICE_NAME_LEN];
+  write_device_name(service_name);
+  const char* pop = WIFI_PROV_POP;
 
   wifi_prov_security_t security = WIFI_PROV_SECURITY_1;
   uint8_t custom_service_uuid[] = {
@@ -127,19 +136,16 @@ void start_wifi_provisioning(void) {
 
   wifi_prov_scheme_ble_set_service_uuid(custom_service_uuid);
   ESP_ERROR_CHECK(
-    wifi_prov_mgr_start_provisioning(security, pop, service_name, NULL)
-  );
-  esp_event_handler_register(
-    WIFI_PROV_EVENT, 
-    ESP_EVENT_ANY_ID,
-    &wifi_provisioning_event_handler, 
-    NULL
-  );
+      wifi_prov_mgr_start_provisioning(security, pop, service_name, NULL));
+
+  wifi_prov_mgr_endpoint_register("maxPeople", max_people_endpoint_handler,
+                                  NULL);
+
+  esp_event_handler_register(WIFI_PROV_EVENT, ESP_EVENT_ANY_ID,
+                             &wifi_provisioning_event_handler, NULL);
 
   ESP_LOGI(LOG_WIFI, "WiFi provisioning started");
 }
-
-
 
 void wifi_event_handler(void* event_handler_arg, esp_event_base_t event_base,
                         int32_t event_id, void* event_data) {
@@ -161,8 +167,8 @@ void wifi_event_handler(void* event_handler_arg, esp_event_base_t event_base,
         ESP_LOGI(LOG_WIFI, "WIFI_EVENT_STA_DISCONNECTED");
         is_connected_to_wifi = false;
         if (wifi_reconnect_task_handle == NULL) {
-          xTaskCreate(&wifi_reconnect_task, "wifi_reconnect_task", 4096, NULL, 5,
-                      &wifi_reconnect_task_handle);
+          xTaskCreate(&wifi_reconnect_task, "wifi_reconnect_task", 4096, NULL,
+                      5, &wifi_reconnect_task_handle);
         }
         break;
       default:
@@ -182,7 +188,7 @@ void wifi_event_handler(void* event_handler_arg, esp_event_base_t event_base,
 
 void wifi_reconnect_task(void* pvParameters) {
   esp_wifi_connect();
-  while (true){
+  while (true) {
     if (!is_connected_to_wifi) {
       ESP_LOGI(LOG_WIFI, "Reconnecting to WiFi");
       esp_wifi_connect();
@@ -205,20 +211,10 @@ void init_wifi_services(void) {
 
 void initialize_wifi_event_handlers(void) {
   ESP_LOGI(LOG_WIFI, "Initializing event handlers");
-  ESP_ERROR_CHECK(esp_event_handler_register(
-    WIFI_EVENT, 
-    ESP_EVENT_ANY_ID,
-    &wifi_event_handler, 
-    NULL
-    )
-  );
-  ESP_ERROR_CHECK(esp_event_handler_register(
-    IP_EVENT, 
-    IP_EVENT_STA_GOT_IP,
-    &wifi_event_handler, 
-    NULL
-    )
-  );
+  ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
+                                             &wifi_event_handler, NULL));
+  ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP,
+                                             &wifi_event_handler, NULL));
   // Duplicate event handler registration removed
   ESP_LOGI(LOG_WIFI, "Event handlers initialized");
 }
@@ -228,17 +224,11 @@ void initialize_wifi_provider_manager(void) {
   wifi_prov_mgr_config_t config = {
       .scheme = wifi_prov_scheme_ble,
       .scheme_event_handler = WIFI_PROV_SCHEME_BLE_EVENT_HANDLER_FREE_BTDM,
-      // .scheme_event_handler = WIFI_PROV_EVENT_HANDLER_NONE,
   };
   ESP_ERROR_CHECK(wifi_prov_mgr_init(config));
-  ESP_LOGI(LOG_PROV, "WiFi provisioning manager initialized");
-}
+  wifi_prov_mgr_endpoint_create("maxPeople");
 
-void background_wifi_provisioning(){
-  start_wifi_provisioning();
-  while (true){
-    vTaskDelay(pdMS_TO_TICKS(1000));
-  }
+  ESP_LOGI(LOG_PROV, "WiFi provisioning manager initialized");
 }
 
 void init_wifi(void) {
@@ -253,12 +243,11 @@ void init_wifi(void) {
            (char*)wifi_config.sta.ssid, (char*)wifi_config.sta.password);
 
   start_wifi_provisioning();
-  vTaskDelay(pdMS_TO_TICKS(90 * 1000)); // wait for 1.5 min for provisioning.
-  if (!got_new_wifi_credentials){
+  vTaskDelay(pdMS_TO_TICKS(90 * 1000));  // wait for 1.5 min for provisioning.
+  if (!got_new_wifi_credentials) {
     ESP_ERROR_CHECK(wifi_prov_mgr_is_provisioned(&provisioned));
     esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
     init_sta();
     esp_wifi_connect();
   }
-  
 }
