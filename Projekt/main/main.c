@@ -51,6 +51,12 @@ TaskHandle_t mqtt_task_handle = NULL;
 #define TRIGGER_GPIO_SECOND 32
 #define ECHO_GPIO_SECOND 33
 
+typedef struct {
+    const ssd1306_config_t *config; // Pointer to the SSD1306 configuration
+    i2c_handler_t *i2c_handler;     // Pointer to the I2C handler
+    oled_display_t *oled_display;  // Pointer to the OLED display
+} TaskParameters;
+
 void buzz() {
   gpio_set_level(GPIO_NUM_19, 1);
   vTaskDelay(10);
@@ -175,67 +181,56 @@ void main_loop(void* pvParameters) {
                                  .echo_pin = ECHO_GPIO_SECOND};
   ultrasonic_init(&sensor2);
 
-  // OLED INIT
-  const ssd1306_config_t config =
-      create_config();  // config dla OLED //config values can be changed config
-                        // vals via sdkconfig file
-  i2c_handler_t i2c_handler;    // handler struct for i2c
-  oled_display_t oled_display;  // oled display handler
-  i2c_master_init(&config, &i2c_handler,
-                  &oled_display);  // init for master bus and device
-#if CONFIG_FLIP
-  oled_display.flip_display = true;
-#endif
-  oled_cmd_init(&oled_display, &config, &i2c_handler);  // init of oled commands
-  clear_oled_display_struct(
-      &oled_display);  // clear data in struct that represents oled screen
-  clear_screen(&config, &oled_display, &i2c_handler);
-  set_brightness(&config, &i2c_handler, 200);
+  TaskParameters *params = (TaskParameters*)pvParameters;
 
-  show_text_large(&config, &oled_display, &i2c_handler, 3, "Hello");
-  vTaskDelay(10000 / config.ticks_to_wait);
-  clear_screen(&config, &oled_display, &i2c_handler);
+   const ssd1306_config_t *config = params->config;
+   i2c_handler_t *i2c_handler = params->i2c_handler;
+   oled_display_t *oled_display = params->oled_display;
+
+  show_text_large(config, oled_display, i2c_handler, 3, "Hello");
+  vTaskDelay(10000 / config->ticks_to_wait);
+  clear_screen(config, oled_display, i2c_handler);
 
   // first sensor distance to the wall
   float dist_first =
-      get_sensor_dist(&sensor, &config, &oled_display, &i2c_handler);
+      get_sensor_dist(&sensor, config, oled_display, i2c_handler);
   printf("distance first: %0.04f cm\n", dist_first);
 
   // second sensor distance to the wall
   float dist_second =
-      get_sensor_dist(&sensor2, &config, &oled_display, &i2c_handler);
+      get_sensor_dist(&sensor2, config, oled_display, i2c_handler);
   printf("distance second: %0.04f cm\n", dist_second);
 
   int ultrasonic_max_people = read_max_people();
 
   while (dist_first > MAX_DISTANCE_CM || dist_second > MAX_DISTANCE_CM) {
-    show_text(&config, &oled_display, &i2c_handler, 0, "Sensor wasn't");
-    show_text(&config, &oled_display, &i2c_handler, 1, "able to get");
-    show_text(&config, &oled_display, &i2c_handler, 2, "correct");
-    show_text(&config, &oled_display, &i2c_handler, 3, "measurements");
-    show_text(&config, &oled_display, &i2c_handler, 4, "please try again");
-    show_text(&config, &oled_display, &i2c_handler, 5, "in 5 seconds");
-    vTaskDelay(50000 / config.ticks_to_wait);
-    clear_screen(&config, &oled_display, &i2c_handler);
+    show_text(config, oled_display, i2c_handler, 0, "Sensor wasn't");
+    show_text(config, oled_display, i2c_handler, 1, "able to get");
+    show_text(config, oled_display, i2c_handler, 2, "correct");
+    show_text(config, oled_display, i2c_handler, 3, "measurements");
+    show_text(config, oled_display, i2c_handler, 4, "please try again");
+    show_text(config, oled_display, i2c_handler, 5, "in 5 seconds");
+    vTaskDelay(50000 / config->ticks_to_wait);
+    clear_screen(config, oled_display, i2c_handler);
 
     // try again until measurements are correct
-    dist_first = get_sensor_dist(&sensor, &config, &oled_display, &i2c_handler);
+    dist_first = get_sensor_dist(&sensor, config, oled_display, i2c_handler);
     printf("distance first: %0.04f cm\n", dist_first);
 
     dist_second =
-        get_sensor_dist(&sensor2, &config, &oled_display, &i2c_handler);
+        get_sensor_dist(&sensor2, config, oled_display, i2c_handler);
     printf("distance second: %0.04f cm\n", dist_second);
   }
 
   // now that distances are measured we can start checking for anomalies in
   // measurements
-  clear_screen(&config, &oled_display, &i2c_handler);
+  clear_screen(config, oled_display, i2c_handler);
 
-  show_text_large(&config, &oled_display, &i2c_handler, 3, "Start");
-  vTaskDelay(10000 / config.ticks_to_wait);
-  clear_screen(&config, &oled_display, &i2c_handler);
+  show_text_large(config, oled_display, i2c_handler, 3, "Start");
+  vTaskDelay(10000 / config->ticks_to_wait);
+  clear_screen(config, oled_display, i2c_handler);
 
-  show_text(&config, &oled_display, &i2c_handler, 0, "Current Count:");
+  show_text(config, oled_display, i2c_handler, 0, "Current Count:");
   char buffer1[16];
   char buffer2[16];
   char buffer_count[16];
@@ -246,12 +241,12 @@ void main_loop(void* pvParameters) {
   bool is_first_counting = true;
 
   // enables buzzer.
-  // gpio_set_direction(GPIO_NUM_19, GPIO_MODE_OUTPUT);  // before uncommenting
+  gpio_set_direction(GPIO_NUM_19, GPIO_MODE_OUTPUT);  // before uncommenting
   // check if your buzzer is on GPIO 19 !!!
   while (true) {
     snprintf(buffer_count, sizeof(buffer_count), "  %d ", count);
     if (is_first_counting) {
-      show_text_large(&config, &oled_display, &i2c_handler, 2, buffer_count);
+      show_text_large(config, oled_display, i2c_handler, 2, buffer_count);
     }
     float distance1;
     float distance2;
@@ -306,18 +301,18 @@ void main_loop(void* pvParameters) {
         EventType event = PERSON_ENTERED;
         mqtt_publish_event(client, event, time(NULL), count);
         snprintf(buffer_count, sizeof(buffer_count), "  %d ", count);
-        clear_large_page(&config, &oled_display, &i2c_handler, 2);  // clearing
-        show_text_large(&config, &oled_display, &i2c_handler, 2, buffer_count);
+        clear_large_page(config, oled_display, i2c_handler, 2);  // clearing
+        show_text_large(config, oled_display, i2c_handler, 2, buffer_count);
         was_counted_first = true;
 
         if (count == ultrasonic_max_people) {
           is_first_counting = false;
-          clear_page(&config, &oled_display, &i2c_handler, 0);
-          show_text(&config, &oled_display, &i2c_handler, 0,
+          clear_page(config, oled_display, i2c_handler, 0);
+          show_text(config, oled_display, i2c_handler, 0,
                     "Too many visitors");
-          clear_large_page(&config, &oled_display, &i2c_handler,
+          clear_large_page(config, oled_display, i2c_handler,
                            2);  // clearing
-          show_text_large(&config, &oled_display, &i2c_handler, 2, "STOP");
+          show_text_large(config, oled_display, i2c_handler, 2, "STOP");
         }
       }
     } else {
@@ -328,31 +323,33 @@ void main_loop(void* pvParameters) {
       if (!was_counted_second) {
         if (count == ultrasonic_max_people) {
           is_first_counting = true;
-          clear_page(&config, &oled_display, &i2c_handler, 0);
-          show_text(&config, &oled_display, &i2c_handler, 0, "Current Count:");
+          clear_page(config, oled_display, i2c_handler, 0);
+          show_text(config, oled_display, i2c_handler, 0, "Current Count:");
         }
         buzz();  // before uncommenting check if your buzzer is on GPIO 19 !!
         count -= 1;
         EventType event = PERSON_LEFT;
         mqtt_publish_event(client, event, time(NULL), count);
         snprintf(buffer_count, sizeof(buffer_count), "  %d ", count);
-        clear_large_page(&config, &oled_display, &i2c_handler, 2);  // clearing
-        show_text_large(&config, &oled_display, &i2c_handler, 2, buffer_count);
+        clear_large_page(config, oled_display, i2c_handler, 2);  // clearing
+        show_text_large(config, oled_display, i2c_handler, 2, buffer_count);
         was_counted_second = true;
       }
     } else {
       was_counted_second = false;
     }
 
+    memset(buffer1, 0, sizeof(buffer1));
+    memset(buffer2, 0, sizeof(buffer2));
     snprintf(buffer1, sizeof(buffer1), "%0.04f cm", distance1 * 100);
     snprintf(buffer2, sizeof(buffer2), "%0.04f cm", distance2 * 100);
-    show_text(&config, &oled_display, &i2c_handler, 6, buffer1);
-    show_text(&config, &oled_display, &i2c_handler, 7, buffer2);
+    show_text(config, oled_display, i2c_handler, 6, buffer1);
+    show_text(config, oled_display, i2c_handler, 7, buffer2);
 
-    vTaskDelay(3500 / config.ticks_to_wait);
+    vTaskDelay(3500 / config->ticks_to_wait);
   }
 
-  clear_screen(&config, &oled_display, &i2c_handler);
+  clear_screen(config, oled_display, i2c_handler);
 }
 /*
  * @brief Function that configures time settings using SNTP.
@@ -386,28 +383,33 @@ void init_hw_services(void) {
   ESP_LOGI(LOG_HW, "Hardware services initialized");
 }
 
-void clear_oled(void) {
-  const ssd1306_config_t config = create_config();
-  i2c_handler_t i2c_handler;
-  oled_display_t oled_display;
-  i2c_master_init(&config, &i2c_handler, &oled_display);
-#if CONFIG_FLIP
-  oled_display.flip_display = true;
-#endif
-  oled_cmd_init(&oled_display, &config, &i2c_handler);  // init of oled commands
-  clear_oled_display_struct(
-      &oled_display);  // clear data in struct that represents oled screen
-  clear_screen(&config, &oled_display, &i2c_handler);
-}
-
 void app_main(void) {
-  init_hw_services();
-  init_mqtt_topics();
-  // clear_oled();
+
+ 	init_hw_services();
+  	init_mqtt_topics();
+  // OLED initialization
+      ssd1306_config_t *config = malloc(sizeof(ssd1306_config_t));
+      i2c_handler_t *i2c_handler = malloc(sizeof(i2c_handler_t));
+      oled_display_t *oled_display = malloc(sizeof(oled_display_t));
+	*config = create_config();
+      i2c_master_init(config, i2c_handler, oled_display);
+  #if CONFIG_FLIP
+      oled_display->flip_display = true;
+  #endif
+      oled_cmd_init(oled_display, config, i2c_handler);
+      clear_oled_display_struct(oled_display);
+      clear_screen(config, oled_display, i2c_handler);
+      set_brightness(config, i2c_handler, 200);
+      TaskParameters *taskParameters = malloc(sizeof(TaskParameters));
+      taskParameters->config = config;
+      taskParameters->i2c_handler = i2c_handler;
+      taskParameters->oled_display = oled_display;
   init_wifi();
   configure_time();
-  if (mqtt_task_handle == NULL) {
-    xTaskCreate(main_loop, "main_loop", configMINIMAL_STACK_SIZE * 6, NULL, 5,
-                NULL);
-  }
+
+  // Start main loop task
+      if (mqtt_task_handle == NULL) {
+          xTaskCreate(main_loop, "main_loop", configMINIMAL_STACK_SIZE * 6, (void *)taskParameters, 5, NULL);
+      }
+
 }
