@@ -57,7 +57,7 @@ fun DeviceSummaryScreen(
         }
 
         is RoomReadingStatus.Success -> {
-            val reading = roomReadingStatus.reading
+            val reading = roomReadingStatus.readings.last()
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -65,7 +65,7 @@ fun DeviceSummaryScreen(
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                NumericDisplay(current = reading.current_people)
+                NumericDisplay(current = reading.current_people, maxPeople = device.maxPeople)
                 if (reading.current_people > 0) {
                     CircularGauge(
                         current = reading.current_people,
@@ -73,6 +73,7 @@ fun DeviceSummaryScreen(
                     )
                 }
             }
+            LineChartContainer(readings = roomReadingStatus.readings, maxPeople = device.maxPeople)
         }
 
         is RoomReadingStatus.Error -> {

@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun NumericDisplay(current: Int) {
+fun NumericDisplay(current: Int, maxPeople: Int) {
     Column(
         modifier = Modifier.padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -22,7 +22,7 @@ fun NumericDisplay(current: Int) {
             style = MaterialTheme.typography.headlineSmall
         )
         Text(
-            text = "$current",
+            text = "$current / $maxPeople",
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.primary
         )

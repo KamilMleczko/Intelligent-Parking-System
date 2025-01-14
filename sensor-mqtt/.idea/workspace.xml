@@ -5,42 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="e44a2a3d-04d1-46a5-ac8c-ad0a326c9ab4" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceSummary/DeviceSummaryScreen.kt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceSummary/DeviceSummaryViewModel.kt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceSummary/DisplayStats.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../DoorCompanion/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../DoorCompanion/app/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/app/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../DoorCompanion/app/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/app/build.gradle.kts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/MainActivity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/MainActivity.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/routing/Router.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/routing/Router.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/routing/Screen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/routing/Screen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/Auth/AuthViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/Auth/AuthViewModel.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/Auth/LoginScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/Auth/LoginScreen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/Auth/SignupScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/Auth/SignupScreen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/BleScanScreen/BleScanScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/BleScanScreen/BleScanScreen.kt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceSummary/LineChart.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceProvisioningScreen/DeviceConnectionViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceProvisioningScreen/DeviceConnectionViewModel.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceProvisioningScreen/DeviceProvisioningForm.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceProvisioningScreen/DeviceProvisioningForm.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceProvisioningScreen/DeviceProvisioningScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceProvisioningScreen/DeviceProvisioningScreen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceStats/DeviceStatsScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceStats/DeviceStatsScreen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceStats/DeviceStatsViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceStats/DeviceStatsViewModel.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../DoorCompanion/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/build.gradle.kts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../DoorCompanion/gradle/libs.versions.toml" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/gradle/libs.versions.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Projekt/main/main.c" beforeDir="false" afterPath="$PROJECT_DIR$/../Projekt/main/main.c" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Projekt/main/mqtt_utils.c" beforeDir="false" afterPath="$PROJECT_DIR$/../Projekt/main/mqtt_utils.c" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Projekt/main/mqtt_utils.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Projekt/main/mqtt_utils.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Projekt/main/utils.c" beforeDir="false" afterPath="$PROJECT_DIR$/../Projekt/main/utils.c" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Projekt/main/utils.h" beforeDir="false" afterPath="$PROJECT_DIR$/../Projekt/main/utils.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Projekt/main/wifi.c" beforeDir="false" afterPath="$PROJECT_DIR$/../Projekt/main/wifi.c" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle.kts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config/mqtt.example.properties" beforeDir="false" afterPath="$PROJECT_DIR$/config/mqtt.example.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/Main.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/Main.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/api/FirestoreClient.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/api/FirestoreClient.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/mqtt/Deserializer.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/mqtt/Deserializer.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/mqtt/MqttProperties.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/mqtt/MqttProperties.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/mqtt/MqttSerialization.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/mqtt/MqttSerialization.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/mqtt/SensorMqttCallback.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/mqtt/SensorMqttCallback.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/kotlin/mqtt/Topic.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/kotlin/mqtt/Topic.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceSummary/DeviceSummaryScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceSummary/DeviceSummaryScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceSummary/DeviceSummaryViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceSummary/DeviceSummaryViewModel.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Projekt/.vscode/settings.json" beforeDir="false" afterPath="$PROJECT_DIR$/../Projekt/.vscode/settings.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -98,39 +68,39 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Gradle.Build broker.executor": "Run",
-    "Gradle.Build sensor-mqtt.executor": "Run",
-    "Kotlin script (Beta).build.gradle.kts.executor": "Run",
-    "Kotlin.Main.executor": "Run",
-    "Kotlin.MainKt (1).executor": "Run",
-    "Kotlin.MainKt (2).executor": "Run",
-    "Kotlin.MainKt.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "main",
-    "ignore.virus.scanning.warn.message": "true",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "D:/Nauka/Sem5/IoT/sensor-mqtt",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.stylelint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.stylelint": "",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "project.structure.last.edited": "Modules",
-    "project.structure.proportion": "0.17285156",
-    "project.structure.side.proportion": "0.40898344",
-    "settings.editor.selected.configurable": "actions.on.save",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Gradle.Build broker.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Build sensor-mqtt.executor&quot;: &quot;Run&quot;,
+    &quot;Kotlin script (Beta).build.gradle.kts.executor&quot;: &quot;Run&quot;,
+    &quot;Kotlin.Main.executor&quot;: &quot;Run&quot;,
+    &quot;Kotlin.MainKt (1).executor&quot;: &quot;Run&quot;,
+    &quot;Kotlin.MainKt (2).executor&quot;: &quot;Run&quot;,
+    &quot;Kotlin.MainKt.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/Nauka/Sem5/IoT/sensor-mqtt&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.stylelint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.stylelint&quot;: &quot;&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.17285156&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.40898344&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;actions.on.save&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   },
-  "keyToStringList": {
-    "kotlin-gradle-user-dirs": [
-      "C:\\Users\\mocko\\.gradle"
+  &quot;keyToStringList&quot;: {
+    &quot;kotlin-gradle-user-dirs&quot;: [
+      &quot;C:\\Users\\mocko\\.gradle&quot;
     ]
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="D:\Nauka\Sem5\IoT\sensor-mqtt" />
@@ -182,6 +152,7 @@
       </method>
     </configuration>
     <list>
+      <item itemvalue="Kotlin.MainKt" />
       <item itemvalue="Kotlin.Main" />
       <item itemvalue="Kotlin.MainKt (1)" />
       <item itemvalue="Kotlin script (Beta).build.gradle.kts" />
@@ -230,7 +201,9 @@
       <workItem from="1736775146064" duration="1662000" />
       <workItem from="1736776835759" duration="2028000" />
       <workItem from="1736778971070" duration="3101000" />
-      <workItem from="1736782211673" duration="20359000" />
+      <workItem from="1736782211673" duration="21111000" />
+      <workItem from="1736850282964" duration="343000" />
+      <workItem from="1736867049246" duration="5876000" />
     </task>
     <servers />
   </component>
