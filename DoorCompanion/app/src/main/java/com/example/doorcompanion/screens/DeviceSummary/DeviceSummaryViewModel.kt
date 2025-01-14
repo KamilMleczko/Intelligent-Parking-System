@@ -5,7 +5,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-
 data class RoomReading(
     val event: String = "",
     val timestamp: Long = 0L,
@@ -15,12 +14,13 @@ data class RoomReading(
 sealed class RoomReadingStatus {
     data object None : RoomReadingStatus()
     data object Loading : RoomReadingStatus()
-    data class Success(val reading: RoomReading) : RoomReadingStatus()
+    data class Success(val readings: List<RoomReading>) :
+        RoomReadingStatus() // Updated to hold a list
+
     data class Error(val message: String) : RoomReadingStatus()
 }
 
 class DeviceSummaryViewModel : ViewModel() {
-
 
     private val firestore = FirebaseFirestore.getInstance()
 
@@ -31,25 +31,40 @@ class DeviceSummaryViewModel : ViewModel() {
         val logsCollectionRef = firestore.collection("events")
             .document(deviceName)
             .collection("logs")
-        Log.i("DOOR", "searching @ $deviceName")
-        _roomReading.value = RoomReadingStatus.Loading
-        logsCollectionRef.addSnapshotListener { snapshot, error ->
-            if (error != null) {
-                Log.e("DOOR", "Error fetching data: ", error)
-                _roomReading.value = RoomReadingStatus.Error(
-                    error.message ?: "Something went wrong when fetching reading data"
-                )
-                return@addSnapshotListener
-            }
-            Log.i("DOOR", "got ${snapshot?.documents?.lastOrNull()}")
-            val responseAsClass =
-                snapshot?.documents?.lastOrNull()?.toObject(RoomReading::class.java)
-            if (responseAsClass == null) {
-                _roomReading.value = RoomReadingStatus.Error("Could not get data for the device!")
-                return@addSnapshotListener
-            }
-            _roomReading.value = RoomReadingStatus.Success(responseAsClass)
-        }
-    }
 
+        val now = System.currentTimeMillis()
+        val oneDayAgo = (now - 24 * 60 * 60 * 1000) / 1000 // 24 hours ago in seconds
+
+        Log.i("DOOR", "Fetching data for last 24 hours for device: $deviceName")
+        _roomReading.value = RoomReadingStatus.Loading
+
+        logsCollectionRef
+            .whereGreaterThanOrEqualTo("timestamp", oneDayAgo) // Filter by timestamp
+            .orderBy(
+                "timestamp",
+                com.google.firebase.firestore.Query.Direction.ASCENDING
+            )
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("DOOR", "Error fetching data: ", error)
+                    _roomReading.value = RoomReadingStatus.Error(
+                        error.message ?: "Something went wrong when fetching reading data"
+                    )
+                    return@addSnapshotListener
+                }
+
+                val readings =
+                    snapshot?.documents?.mapNotNull { it.toObject(RoomReading::class.java) }
+                if (readings.isNullOrEmpty()) {
+                    _roomReading.value =
+                        RoomReadingStatus.Error("No data available for the last 24 hours!")
+                    return@addSnapshotListener
+                }
+
+                Log.i("DOOR", "Successfully fetched ${readings.size} readings.")
+                _roomReading.value =
+                    RoomReadingStatus.Success(readings) // Store the list of readings
+
+            }
+    }
 }

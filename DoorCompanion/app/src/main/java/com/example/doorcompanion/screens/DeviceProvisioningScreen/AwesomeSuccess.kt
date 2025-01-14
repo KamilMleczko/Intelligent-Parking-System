@@ -15,9 +15,9 @@ fun AwesomeSuccess() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .fillMaxHeight()
+            .fillMaxHeight(0.8f)
     ) {
-        Text("Device has been succesfully provisioned!")
+        Text("Device has been successfully provisioned!")
         Icon(
             painter = painterResource(R.drawable.awesome),
             contentDescription = "Awesome success"

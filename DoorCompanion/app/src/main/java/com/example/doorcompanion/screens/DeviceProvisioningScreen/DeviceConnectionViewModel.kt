@@ -171,6 +171,52 @@ class DeviceConnectionViewModel : ViewModel() {
         status = ProvisioningStatus()
     }
 
+    private fun cleanupDeviceBindings(deviceName: String, currentUserId: String) {
+        val db = Firebase.firestore
+        Log.i("DOOR", "Cleanup started for device: $deviceName")
+
+        // Use a collection group query to search all "devices" subcollections
+        db.collectionGroup("devices")
+            .whereEqualTo("name", deviceName) // Match the nested "device.name" field
+            .get()
+            .addOnSuccessListener { devicesSnapshot ->
+                if (devicesSnapshot.isEmpty) {
+                    Log.i("DOOR", "No devices found with name: $deviceName.")
+                    return@addOnSuccessListener
+                }
+
+                Log.i("DOOR", "Found ${devicesSnapshot.size()} devices with name: $deviceName.")
+
+                for (deviceDoc in devicesSnapshot.documents) {
+                    // Get the parent user ID from the path
+                    val parentPath = deviceDoc.reference.path
+                    val userId =
+                        parentPath.split("/")[1] // Extract userId from "users/{userId}/devices/{docId}"
+
+                    // Skip the current user's devices
+                    if (userId == currentUserId) {
+                        Log.i("DOOR", "Skipping current user with UID=$userId")
+                        continue
+                    }
+
+                    // Delete the document
+                    deviceDoc.reference.delete()
+                        .addOnSuccessListener {
+                            Log.i(
+                                "DOOR",
+                                "Removed device '$deviceName' from user with UID=$userId."
+                            )
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("DOOR", "Failed to remove device for user with UID=$userId: $e")
+                        }
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("DOOR", "Error querying devices collection group: $e")
+            }
+    }
+
     private fun saveDeviceToFirebase(params: ProvisioningParams) {
         val currentUser = FirebaseAuth.getInstance().currentUser
         if (currentUser != null) {
@@ -185,12 +231,48 @@ class DeviceConnectionViewModel : ViewModel() {
                 "timestamp" to System.currentTimeMillis()
             )
 
-            userDevicesRef.add(deviceData)
-                .addOnSuccessListener {
-                    Log.i("DOOR", "Device successfully added to user's bound devices.")
+            // Check if the device already exists
+            userDevicesRef
+                .whereEqualTo("name", params.deviceName)
+                .get()
+                .addOnSuccessListener { querySnapshot ->
+                    if (!querySnapshot.isEmpty) {
+                        // If the device exists, update the existing document
+                        val existingDoc = querySnapshot.documents.first()
+                        existingDoc.reference.set(deviceData)
+                            .addOnSuccessListener {
+                                cleanupDeviceBindings(
+                                    deviceName = params.deviceName,
+                                    currentUser.uid
+                                )
+                                Log.i(
+                                    "DOOR",
+                                    "Device updated successfully for '${params.deviceName}'."
+                                )
+                            }
+                            .addOnFailureListener { e ->
+                                Log.e("DOOR", "Failed to update device '${params.deviceName}': $e")
+                            }
+                    } else {
+                        // If the device does not exist, create a new document
+                        userDevicesRef.add(deviceData)
+                            .addOnSuccessListener {
+                                cleanupDeviceBindings(
+                                    deviceName = params.deviceName,
+                                    currentUserId = currentUser.uid
+                                )
+                                Log.i(
+                                    "DOOR",
+                                    "Device added successfully for '${params.deviceName}'."
+                                )
+                            }
+                            .addOnFailureListener { e ->
+                                Log.e("DOOR", "Failed to add device '${params.deviceName}': $e")
+                            }
+                    }
                 }
                 .addOnFailureListener { e ->
-                    Log.e("DOOR", "Error adding device to user's bound devices: $e")
+                    Log.e("DOOR", "Error querying devices for '${params.deviceName}': $e")
                 }
         } else {
             Log.e("DOOR", "No authenticated user found. Cannot bind device.")

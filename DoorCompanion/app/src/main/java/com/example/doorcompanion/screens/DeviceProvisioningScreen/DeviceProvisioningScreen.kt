@@ -60,8 +60,6 @@ fun DeviceProvisioningScreen(
     if (status.provisionedSuccesfully) {
         AwesomeSuccess()
     }
-    Text("Status: ${connectionStatus.name}")
-    Text("Status: ${connectionStatus.name}")
     if (!status.provisionedSuccesfully && status.finishedProvisioning) {
         Button(
             onClick = {
