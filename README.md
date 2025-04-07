@@ -1,4 +1,4 @@
-# Intelligent-Parking-System
+# Intelligent Parking System
 
 ## Założenia Projektu
 Inteligentny system parkingowy to urządzenie IoT służące do zliczania i wyświetlania aktualnej liczby samochodów na parkingu. Bramka wjazdowa znajduje się po jednej stronie, a wyjazdowa po drugiej (konfigurację można zmienić). Do urządzenia dołączona jest dedykowana aplikacja mobilna zapewniająca łatwą i szybką konfigurację urządzenia wraz z analizą zapełnienia parkingu w czasie. 
