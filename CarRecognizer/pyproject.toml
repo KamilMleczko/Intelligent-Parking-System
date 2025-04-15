@@ -1,0 +1,31 @@
+[project]
+name = "carrecognizer"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "easyocr>=1.7.2",
+    "fastapi[standard]>=0.115.12",
+    "opencv-python>=4.11.0.86",
+    "pillow>=11.2.1",
+    "ultralytics>=8.3.108",
+]
+
+[project.scripts]
+car-recognizer = "server.server:main"
+car-recognizer-dev = "server.server:dev"
+
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.2.0",
+    "ruff>=0.11.5",
+]
+
+[tool.ruff.lint]
+select = ["ALL"] # The stricter the linter, the more you learn
+ignore = ["D"] # Can't be bothered to write damn docstrings!!
