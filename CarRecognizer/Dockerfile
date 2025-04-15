@@ -5,4 +5,4 @@ ADD . /app
 WORKDIR /app
 RUN uv sync --frozen
 
-CMD [ "uv", "run", "src/processing/car_detector.py" ]
+CMD [ "uv", "run", "car-recognizer" ]
