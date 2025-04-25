@@ -1,0 +1,128 @@
+# put here your custom config value
+menu "Example Configuration"
+config ESP_WIFI_SSID
+    string "WiFi SSID"
+    default "myssid"
+    help
+	SSID (network name) for the example to connect to.
+
+config ESP_WIFI_PASSWORD
+    string "WiFi Password"
+    default "mypassword"
+    help
+	WiFi password (WPA or WPA2) for the example to use.
+endmenu
+
+menu "SSD1306 Configuration"
+
+	config GPIO_RANGE_MAX
+		int
+		default 33 if IDF_TARGET_ESP32
+		default 46 if IDF_TARGET_ESP32S2
+		default 48 if IDF_TARGET_ESP32S3
+		default 18 if IDF_TARGET_ESP32C2
+		default 19 if IDF_TARGET_ESP32C3
+		default 30 if IDF_TARGET_ESP32C6
+		default 27 if IDF_TARGET_ESP32H2
+
+	choice INTERFACE
+		prompt "Interface"
+		default I2C_INTERFACE
+		help
+			Select Interface.
+		config I2C_INTERFACE
+			bool "I2C Interface"
+			help
+				I2C Interface.
+	endchoice
+
+	choice PANEL
+		prompt "Panel Type"
+		default SSD1306_128x64
+		help
+			Select Panel Type.
+		config SSD1306_128x64
+			bool "128x64 Panel"
+			help
+				Panel is 128x64.
+	endchoice
+
+	config FLIP
+		bool "Flip upside down"
+		default false
+		help
+			Flip upside down.
+
+	config SCL_GPIO
+		depends on I2C_INTERFACE
+		int "SCL GPIO number"
+		range 0 GPIO_RANGE_MAX
+		default 22 if IDF_TARGET_ESP32
+		default  2 if IDF_TARGET_ESP32S2 || IDF_TARGET_ESP32S3
+		default  2 if IDF_TARGET_ESP32H2
+		default  6 # C3 and others
+		help
+			GPIO number (IOxx) to I2C SCL.
+			Some GPIOs are used for other purposes (flash connections, etc.) and cannot be used to I2C.
+			GPIOs 35-39 are input-only so cannot be used as outputs.
+
+	config SDA_GPIO
+		depends on I2C_INTERFACE
+		int "SDA GPIO number"
+		range 0 GPIO_RANGE_MAX
+		default 21 if IDF_TARGET_ESP32
+		default  1 if IDF_TARGET_ESP32S2 || IDF_TARGET_ESP32S3
+		default  1 if IDF_TARGET_ESP32H2
+		default  5 # C3 and others
+		help
+			GPIO number (IOxx) to I2C SDA.
+			Some GPIOs are used for other purposes (flash connections, etc.) and cannot be used to I2C.
+			GPIOs 35-39 are input-only so cannot be used as outputs.
+
+
+	config SCLK_GPIO
+		depends on SPI_INTERFACE
+		int "SCLK GPIO number"
+		range 0 GPIO_RANGE_MAX
+		default 18 if IDF_TARGET_ESP32
+		default 36 if IDF_TARGET_ESP32S2 || IDF_TARGET_ESP32S3
+		default  2 # C3 and others
+		help
+			GPIO number (IOxx) to SPI SCLK.
+			Some GPIOs are used for other purposes (flash connections, etc.) and cannot be used to SCLK.
+			On the ESP32, GPIOs 35-39 are input-only so cannot be used as outputs.
+			On the ESP32-S2, GPIO 46 is input-only so cannot be used as outputs.
+
+	
+	config RESET_GPIO
+		int "RESET GPIO number"
+		range -1 GPIO_RANGE_MAX
+		default 15 if IDF_TARGET_ESP32
+		default 38 if IDF_TARGET_ESP32S2 || IDF_TARGET_ESP32S3
+		default  4 # C3 and others
+		help
+			GPIO number (IOxx) to RESET.
+			When it is -1, RESET isn't performed.
+			Some GPIOs are used for other purposes (flash connections, etc.) and cannot be used to RESET.
+			GPIOs 35-39 are input-only so cannot be used as outputs.
+
+	choice I2C_PORT
+		depends on I2C_INTERFACE
+		prompt "I2C port that controls this bus"
+		default I2C_PORT_0
+		help
+			Select I2C port that controls this bus.
+		config I2C_PORT_0
+			bool "I2C_PORT_0"
+			help
+				Use I2C_PORT_0.
+		config I2C_PORT_1
+			depends on IDF_TARGET_ARCH_XTENSA
+			bool "I2C_PORT_1"
+			help
+				Use I2C_PORT_1.
+	endchoice
+
+
+endmenu
+
