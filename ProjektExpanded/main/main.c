@@ -45,7 +45,7 @@ TaskHandle_t mqtt_task_handle = NULL;
 // Camera
 #include "esp_camera.h"
 #include "esp_http_client.h"
-#define SERVER_URL "http://192.168.103.77:8000/upload_picture/"
+
 camera_fb_t *current_frame = NULL;
 
 #define CAM_PIN_PWDN -1  //power down is not used
