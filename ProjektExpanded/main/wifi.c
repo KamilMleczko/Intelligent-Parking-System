@@ -31,20 +31,11 @@
 #include "utils.h"
 #include "wifi.h"
 
-#define WIFI_DIODE 17
-
 bool is_connected_to_wifi = false;
 bool wifi_setup_done = false;
 bool got_new_wifi_credentials = false;
 
 TaskHandle_t wifi_reconnect_task_handle = NULL;
-
-void wifi_diode_blink(void) {
-  gpio_set_level(WIFI_DIODE, 1);
-  vTaskDelay(pdMS_TO_TICKS(100));
-  gpio_set_level(WIFI_DIODE, 0);
-  vTaskDelay(100);
-}
 
 void init_sta(void) {
   ESP_LOGI(LOG_WIFI, "Initializing station mode");
