@@ -1,21 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="AutoImportSettings">
-    <option name="autoReloadType" value="SELECTIVE" />
+    <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
     <list default="true" id="e44a2a3d-04d1-46a5-ac8c-ad0a326c9ab4" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceSummary/LineChart.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceProvisioningScreen/DeviceConnectionViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceProvisioningScreen/DeviceConnectionViewModel.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceSummary/DeviceSummaryScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceSummary/DeviceSummaryScreen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceSummary/DeviceSummaryViewModel.kt" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/app/src/main/java/com/example/doorcompanion/screens/DeviceSummary/DeviceSummaryViewModel.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Projekt/.vscode/settings.json" beforeDir="false" afterPath="$PROJECT_DIR$/../Projekt/.vscode/settings.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/AndroidProjectSystem.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/migrations.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/runConfigurations.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../DoorCompanion/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../DoorCompanion/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../DoorCompanion/app/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/app/build.gradle.kts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../DoorCompanion/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/../DoorCompanion/build.gradle.kts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/gradle.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/gradle.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
   </component>
   <component name="ExternalProjectsData">
     <projectState path="$PROJECT_DIR$">
@@ -64,6 +72,9 @@
   &quot;associatedIndex&quot;: 3
 }</component>
   <component name="ProjectId" id="2pLwb4PPwLtaqFro9T6rN5JIzDR" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="1" id="Add" />
+  </component>
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
@@ -78,10 +89,16 @@
     &quot;Kotlin.MainKt (2).executor&quot;: &quot;Run&quot;,
     &quot;Kotlin.MainKt.executor&quot;: &quot;Run&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.readMode.enableVisualFormatting&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
+    &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;main&quot;,
     &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
     &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;D:/Nauka/Sem5/IoT/sensor-mqtt&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/kamil/Intelligent-Parking-System/DoorCompanion&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.stylelint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
@@ -94,18 +111,15 @@
     &quot;project.structure.side.proportion&quot;: &quot;0.40898344&quot;,
     &quot;settings.editor.selected.configurable&quot;: &quot;actions.on.save&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
-  },
-  &quot;keyToStringList&quot;: {
-    &quot;kotlin-gradle-user-dirs&quot;: [
-      &quot;C:\\Users\\mocko\\.gradle&quot;
-    ]
   }
 }</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\kamil\Intelligent-Parking-System\sensor-mqtt\config" />
       <recent name="D:\Nauka\Sem5\IoT\sensor-mqtt" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\kamil\Intelligent-Parking-System\sensor-mqtt\config" />
       <recent name="D:\Nauka\Sem5\IoT\sensor-mqtt\config" />
       <recent name="D:\Nauka\Sem5\IoT\broker\config" />
     </key>
@@ -152,9 +166,9 @@
       </method>
     </configuration>
     <list>
+      <item itemvalue="Kotlin.MainKt (1)" />
       <item itemvalue="Kotlin.MainKt" />
       <item itemvalue="Kotlin.Main" />
-      <item itemvalue="Kotlin.MainKt (1)" />
       <item itemvalue="Kotlin script (Beta).build.gradle.kts" />
     </list>
     <recent_temporary>
