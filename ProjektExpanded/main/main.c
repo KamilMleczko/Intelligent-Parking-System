@@ -18,6 +18,7 @@
 #include "esp_err.h"
 #include "esp_netif.h"
 
+
 // light weight ip (TCP IP)
 #include <esp_netif_sntp.h>
 #include <time.h>
@@ -29,15 +30,13 @@
 #include "lwip/netdb.h"
 #include "lwip/sockets.h"  //sockets
 #include "lwip/sys.h"      //system applications
-#include "mqtt_utils.h"
 #include "utils.h"
 #include "wifi.h"
 #include "esp_err.h"
-TaskHandle_t mqtt_task_handle = NULL;
 #define DEFAULT_MAX_PEOPLE 30
 // oled lib
-#include "my_ssd1306.h"
-#define tag "SSD1306"
+// #include "my_ssd1306.h"
+// #define tag "SSD1306"
 // Camera
 #include "esp_camera.h"
 

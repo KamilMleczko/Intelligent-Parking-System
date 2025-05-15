@@ -27,7 +27,6 @@
 #include "lwip/netdb.h"
 #include "lwip/sockets.h"  //sockets
 #include "lwip/sys.h"      //system applications
-#include "mqtt_utils.h"
 #include "utils.h"
 #include "wifi.h"
 
@@ -199,7 +198,6 @@ void init_wifi(void) {
   initialize_wifi_event_handlers();
   initialize_wifi_provider_manager();
   init_device_name();
-  init_mqtt_topics();
   bool provisioned = false;
 
   wifi_config_t wifi_config;
