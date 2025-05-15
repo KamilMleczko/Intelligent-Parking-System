@@ -1,7 +1,5 @@
 #include "utils.h"
-
 #include <stdio.h>
-
 #include "wifi.h"
 
 void write_device_name(char* buffer) {

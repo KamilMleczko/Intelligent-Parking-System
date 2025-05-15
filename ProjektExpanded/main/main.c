@@ -1,4 +1,3 @@
-#include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,13 +17,10 @@
 // do zad2 lab1
 #include "esp_err.h"
 #include "esp_netif.h"
-#include "esp_tls.h"
 
 // light weight ip (TCP IP)
 #include <esp_netif_sntp.h>
 #include <time.h>
-#include <wifi_provisioning/manager.h>
-#include <wifi_provisioning/scheme_ble.h>
 
 #include "credentials.h"
 #include "esp_bt.h"
@@ -44,9 +40,19 @@ TaskHandle_t mqtt_task_handle = NULL;
 #define tag "SSD1306"
 // Camera
 #include "esp_camera.h"
-#include "esp_http_client.h"
 
+// For websocket streaming
+#define STREAM_SERVER_HOST "192.168.103.77"
+#define STREAM_SERVER_PORT 8000
+#define STREAM_SERVER_PATH "/ws_stream/esp32cam1"  // Include a unique device ID
+#define STREAM_FPS 1  // frames per second to stream
+#define STREAM_QUALITY 20  // JPEG quality (0-63, lower is better quality)
+
+// TCP socket implementation constants
 camera_fb_t *current_frame = NULL;
+int sock = -1;  // Socket for TCP streaming
+bool socket_connected = false;
+
 
 #define CAM_PIN_PWDN -1  //power down is not used
 #define CAM_PIN_RESET -1 //software reset will be performed
@@ -116,6 +122,133 @@ static esp_err_t init_camera(void)
     return ESP_OK;
 }
 #endif
+bool connect_socket() {
+    if (socket_connected) {
+        return true;
+    }
+
+    struct sockaddr_in dest_addr;
+    dest_addr.sin_addr.s_addr = inet_addr(STREAM_SERVER_HOST);
+    dest_addr.sin_family = AF_INET;
+    dest_addr.sin_port = htons(STREAM_SERVER_PORT);
+
+    // Create a socket
+    sock = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+    if (sock < 0) {
+        ESP_LOGE("SOCKET", "Unable to create socket: errno %d", errno);
+        return false;
+    }
+
+    // Set socket option to timeout if connection takes too long
+    struct timeval timeout;
+    timeout.tv_sec = 5;
+    timeout.tv_usec = 0;
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+
+    // Connect to the server
+    int err = connect(sock, (struct sockaddr *)&dest_addr, sizeof(struct sockaddr_in));
+    if (err != 0) {
+        ESP_LOGE("SOCKET", "Socket connect failed, errno=%d", errno);
+        close(sock);
+        sock = -1;
+        return false;
+    }
+
+    // Send HTTP WebSocket upgrade request
+    char upgrade_request[256];
+    snprintf(upgrade_request, sizeof(upgrade_request),
+        "GET %s HTTP/1.1\r\n"
+        "Host: %s:%d\r\n"
+        "Upgrade: websocket\r\n"
+        "Connection: Upgrade\r\n"
+        "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
+        "Sec-WebSocket-Version: 13\r\n\r\n",
+        STREAM_SERVER_PATH, STREAM_SERVER_HOST, STREAM_SERVER_PORT);
+
+    if (send(sock, upgrade_request, strlen(upgrade_request), 0) < 0) {
+        ESP_LOGE("SOCKET", "Failed to send WebSocket upgrade request");
+        close(sock);
+        sock = -1;
+        return false;
+    }
+
+    // Read response to verify connection
+    char rx_buffer[512];
+    int len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+    if (len < 0) {
+        ESP_LOGE("SOCKET", "Connection failed, recv error");
+        close(sock);
+        sock = -1;
+        return false;
+    }
+    rx_buffer[len] = 0; // Null-terminate to make it a valid string
+    
+    // Check if we got "HTTP/1.1 101" (WebSocket Switching Protocols)
+    if (strstr(rx_buffer, "HTTP/1.1 101") != NULL) {
+        ESP_LOGI("SOCKET", "WebSocket handshake successful");
+        socket_connected = true;
+        return true;
+    } else {
+        ESP_LOGE("SOCKET", "WebSocket handshake failed: %s", rx_buffer);
+        close(sock);
+        sock = -1;
+        return false;
+    }
+}
+
+// Function to send frame over WebSocket
+bool send_frame_over_websocket(const uint8_t *frame_data, size_t frame_len) {
+    if (!socket_connected && !connect_socket()) {
+        return false;
+    }
+
+    uint8_t header[14];
+    size_t header_len = 0;
+    uint8_t mask_key[4] = {0x12, 0x34, 0x56, 0x78};  // Ideally, randomize this
+    size_t payload_offset = 0;
+
+    header[0] = 0x82;  // FIN + binary
+    if (frame_len < 126) {
+        header[1] = 0x80 | frame_len;  // MASK bit set
+        header_len = 2;
+    } else if (frame_len <= 0xFFFF) {
+        header[1] = 0x80 | 126;
+        header[2] = (frame_len >> 8) & 0xFF;
+        header[3] = frame_len & 0xFF;
+        header_len = 4;
+    } else {
+        header[1] = 0x80 | 127;
+        for (int i = 0; i < 8; i++) {
+            header[2 + i] = (frame_len >> ((7 - i) * 8)) & 0xFF;
+        }
+        header_len = 10;
+    }
+
+    // Send header
+    if (send(sock, header, header_len, 0) < 0) goto err;
+
+    // Send masking key
+    if (send(sock, mask_key, 4, 0) < 0) goto err;
+
+    // Mask and send payload
+    for (size_t i = 0; i < frame_len; i++) {
+        uint8_t masked = frame_data[i] ^ mask_key[i % 4];
+        if (send(sock, &masked, 1, 0) < 0) goto err;
+    }
+
+    ESP_LOGI("SOCKET", "Frame sent: %d bytes", frame_len);
+    return true;
+
+err:
+    ESP_LOGE("SOCKET", "Failed during WebSocket frame send");
+    socket_connected = false;
+    close(sock);
+    sock = -1;
+    return false;
+}
+
+
 /*
  * @brief Function that configures time settings using SNTP.
  * It sets timezone to CEST.
@@ -146,152 +279,87 @@ void init_hw_services(void) {
   ESP_LOGI(LOG_HW, "Hardware services initialized");
 }
 
+void stream_camera_task(void *pvParameters) {
+    // Calculate delay between frames based on desired FPS
+    const TickType_t delay_time = 1000 / STREAM_FPS / portTICK_RATE_MS;
+    int consecutive_failures = 0;
+    
+    while (true) {
+        // Try to connect if not connected
+        if (!socket_connected) {
+            if (connect_socket()) {
+                consecutive_failures = 0;
+            } else {
+                ESP_LOGW("CAMERA", "Failed to connect to server, will retry");
+                vTaskDelay(5000 / portTICK_RATE_MS); // Wait 5 seconds before retrying
+                continue;
+            }
+        }
+        
+        // Capture a frame
+        camera_fb_t *fb = esp_camera_fb_get();
+        
+        if (!fb) {
+            ESP_LOGE("CAMERA", "Camera capture failed");
+            vTaskDelay(delay_time);
+            continue;
+        }
 
-void camera_task(void *pvParameters) {
-  while (true) {
-      // Free the previous frame if it exists
-      if (current_frame) {
-          esp_camera_fb_return(current_frame);
-          ESP_LOGI("CAMERA", "freeing last frame");
-      }
+        // Send the frame
+        if (!send_frame_over_websocket(fb->buf, fb->len)) {
+            consecutive_failures++;
+            ESP_LOGE("CAMERA", "Failed to send frame (failure #%d)", consecutive_failures);
+            
+            // If we've failed multiple times, sleep longer to prevent thrashing
+            if (consecutive_failures > 5) {
+                vTaskDelay(5000 / portTICK_RATE_MS);
+            }
+        } else {
+            consecutive_failures = 0;
+        }
 
-      // Grab a new frame
-      current_frame = esp_camera_fb_get();
-      if (!current_frame) {
-          ESP_LOGE("CAMERA", "Camera capture failed");
-      }
-      else{
-        ESP_LOGI("CAMERA", "Camera capture succesfull");
-      }
-
-      // Sleep a bit (adjust based on your needs)
-      vTaskDelay(5000 / portTICK_RATE_MS);
-  }
+        // Return the frame buffer to be reused
+        esp_camera_fb_return(fb);
+        
+        // Delay to achieve target FPS
+        vTaskDelay(delay_time);
+    }
 }
-
-void init_camera_capture() {
-  if (init_camera() == ESP_OK) {
-      // Take first frame to avoid VSYNC overflow spam
-      camera_fb_t *pic = esp_camera_fb_get();
-      esp_camera_fb_return(pic);
-      vTaskDelay(5000 / portTICK_RATE_MS);
-      // Start the camera grabbing task
-      xTaskCreatePinnedToCore(camera_task, "camera_task", 4096, NULL, 5, NULL, 0);
-      ESP_LOGI("CAMERA", "Camera capture task started");
-  } else {
-      ESP_LOGE("CAMERA", "Camera init failed!");
-  }
-}
-
-void take_photo_and_upload(void) {
-  if (!current_frame) {
-      ESP_LOGE("UPLOAD", "No frame available to upload");
-      return;
-  }
-
-  esp_http_client_config_t config = {
-      .url = SERVER_URL,
-      .timeout_ms = 10000, // Optional: timeout for connection
-  };
-  esp_http_client_handle_t client = esp_http_client_init(&config);
-  if (client == NULL) {
-      ESP_LOGE("UPLOAD", "Failed to initialize HTTP client");
-      return;
-  }
-
-  const char *boundary = "----ESP32Boundary";
-  char start_form[512];
-  snprintf(start_form, sizeof(start_form),
-           "--%s\r\n"
-           "Content-Disposition: form-data; name=\"file\"; filename=\"picture.jpg\"\r\n"
-           "Content-Type: image/jpeg\r\n\r\n",
-           boundary);
-
-  char end_form[128];
-  snprintf(end_form, sizeof(end_form), "\r\n--%s--\r\n", boundary);
-
-  char content_type[128];
-  snprintf(content_type, sizeof(content_type), "multipart/form-data; boundary=%s", boundary);
-  esp_http_client_set_header(client, "Content-Type", content_type);
-
-  int total_len = strlen(start_form) + current_frame->len + strlen(end_form);
-  esp_http_client_set_method(client, HTTP_METHOD_POST);
-
-  esp_err_t err = esp_http_client_open(client, total_len);
-  if (err != ESP_OK) {
-      ESP_LOGE("UPLOAD", "Failed to open HTTP connection: %s", esp_err_to_name(err));
-      esp_http_client_cleanup(client); // Important to cleanup here
-      return;
-  }
-
-  // Write start of multipart
-  int wlen = esp_http_client_write(client, start_form, strlen(start_form));
-  if (wlen < 0) {
-      ESP_LOGE("UPLOAD", "Failed to write start form");
-      esp_http_client_close(client);
-      esp_http_client_cleanup(client);
-      return;
-  }
-
-  // Write image data
-  wlen = esp_http_client_write(client, (const char *)current_frame->buf, current_frame->len);
-  if (wlen < 0) {
-      ESP_LOGE("UPLOAD", "Failed to write image data");
-      esp_http_client_close(client);
-      esp_http_client_cleanup(client);
-      return;
-  }
-
-  // Write end of multipart
-  wlen = esp_http_client_write(client, end_form, strlen(end_form));
-  if (wlen < 0) {
-      ESP_LOGE("UPLOAD", "Failed to write end form");
-      esp_http_client_close(client);
-      esp_http_client_cleanup(client);
-      return;
-  }
-
-  // Now fetch server response
-  int http_status = esp_http_client_fetch_headers(client);
-  if (http_status > 0) {
-      int status_code = esp_http_client_get_status_code(client);
-      ESP_LOGI("UPLOAD", "HTTP POST Status = %d", status_code);
-  } else {
-      ESP_LOGE("UPLOAD", "HTTP POST request failed: %s", esp_err_to_name(http_status));
-  }
-
-  esp_http_client_close(client);
-  esp_http_client_cleanup(client);
-}
-
 
 
 void app_main(void) {
-  
+   init_hw_services();
+    init_wifi();
+    esp_bt_controller_disable();
+    esp_bt_controller_deinit();
 
-  init_hw_services();
-  init_wifi();
-  esp_bt_controller_disable();
-  esp_bt_controller_deinit();
-  //configure_time();
-
-
-
-  #if ESP_CAMERA_SUPPORTED
-    while (1){
-    init_camera_capture();
-      int i = 0;
-      while (1) {
-        if (i == 10 || i ==5 || i==3) {
-          take_photo_and_upload();
+    #if ESP_CAMERA_SUPPORTED
+        // Initialize camera
+        if (init_camera() != ESP_OK) {
+            ESP_LOGE("CAMERA", "Failed to initialize camera!");
+            return;
         }
-        vTaskDelay(5000 / portTICK_RATE_MS);
-        i++;
-      }
-    }
-#else
-    ESP_LOGE(TAG, "Camera support is not available for this chip");
-    return;
-#endif
+        
+        // Start camera streaming task
+        xTaskCreatePinnedToCore(
+            stream_camera_task,      // Task function
+            "stream_camera_task",    // Task name
+            4096,                   // Stack size (bytes)
+            NULL,                   // Task parameters
+            5,                      // Task priority
+            NULL,                   // Task handle
+            0                       // Core ID (0 for PRO CPU)
+        );
+        
+        ESP_LOGI("CAMERA", "Camera streaming started");
+        
+        // Keep the main task alive
+        while (1) {
+            vTaskDelay(1000 / portTICK_RATE_MS);
+        }
+    #else
+        ESP_LOGE("CAMERA", "Camera support is not available for this chip");
+        return;
+    #endif
     
 }

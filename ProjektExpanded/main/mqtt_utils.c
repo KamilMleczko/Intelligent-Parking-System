@@ -1,7 +1,5 @@
 #include "mqtt_utils.h"
-
 #include <mqtt_client.h>
-
 #include "credentials.h"
 #include "utils.h"
 #include "wifi.h"
