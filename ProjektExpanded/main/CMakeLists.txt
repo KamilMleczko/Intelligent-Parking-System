@@ -5,7 +5,6 @@ idf_component_register(
     SRCS 
         main.c
         utils.c
-        mqtt_utils.c
         wifi.c
         my_ssd1306_init.c
         my_ssd1306.c
