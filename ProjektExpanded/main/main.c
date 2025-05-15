@@ -24,7 +24,6 @@
 #include <time.h>
 
 #include "credentials.h"
-#include "esp_bt.h"
 #include "esp_sntp.h"
 #include "lwip/err.h"  //error handling
 #include "lwip/netdb.h"
@@ -45,8 +44,8 @@
 #define STREAM_SERVER_PORT 8000
 #define STREAM_SERVER_PATH "/ws_stream/esp32cam1"  // Include a unique device ID
 #define STREAM_FPS 1  // frames per second to stream
-#define STREAM_QUALITY 20  // JPEG quality (0-63, lower is better quality)
-
+#define IMAGE_QUALITY 10  // JPEG quality (0-63, lower is better quality)
+#define CAMERA_BRIGHTNESS 500
 // TCP socket implementation constants
 camera_fb_t *current_frame = NULL;
 int sock = -1;  // Socket for TCP streaming
@@ -103,7 +102,7 @@ static camera_config_t camera_config = {
     .pixel_format = PIXFORMAT_JPEG, //YUV422,GRAYSCALE,RGB565,JPEG
     .frame_size = FRAMESIZE_QVGA,    //QQVGA-UXGA, For ESP32, do not use sizes above QVGA when not JPEG. The performance of the ESP32-S series has improved a lot, but JPEG mode always gives better frame rates.
 
-    .jpeg_quality = 20, //0-63, for OV series camera sensors, lower number means higher quality
+    .jpeg_quality = IMAGE_QUALITY, //0-63, for OV series camera sensors, lower number means higher quality
     .fb_count = 1,       //When jpeg mode is used, if fb_count more than one, the driver will work in continuous mode.
     .fb_location = CAMERA_FB_IN_PSRAM,
     .grab_mode = CAMERA_GRAB_WHEN_EMPTY,
@@ -112,6 +111,14 @@ static esp_err_t init_camera(void)
 {
     //initialize the camera
     esp_err_t err = esp_camera_init(&camera_config);
+    sensor_t *s = esp_camera_sensor_get();
+    s->set_brightness(s, 2);
+    s->set_contrast(s, 1);
+    s->set_saturation(s, 1);
+    s->set_aec2(s, 0);
+    s->set_gainceiling(s, (gainceiling_t)6);
+    s->set_exposure_ctrl(s, 1);
+    s->set_aec_value(s, CAMERA_BRIGHTNESS); // Higher value = brighter
     if (err != ESP_OK)
     {
         ESP_LOGE(LOG_HW, "Camera Init Failed");
@@ -329,8 +336,8 @@ void stream_camera_task(void *pvParameters) {
 void app_main(void) {
    init_hw_services();
     init_wifi();
-    esp_bt_controller_disable();
-    esp_bt_controller_deinit();
+    //esp_bt_controller_disable();
+    //esp_bt_controller_deinit();
 
     #if ESP_CAMERA_SUPPORTED
         // Initialize camera
