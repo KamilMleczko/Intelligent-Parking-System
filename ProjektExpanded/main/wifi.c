@@ -208,7 +208,7 @@ void init_wifi(void) {
            (char*)wifi_config.sta.ssid, (char*)wifi_config.sta.password);
 
   start_wifi_provisioning();
-  vTaskDelay(pdMS_TO_TICKS(60 * 1000));  // wait for 1.5 min for provisioning.
+  vTaskDelay(pdMS_TO_TICKS(10 * 1000));  // wait for 1.5 min for provisioning.
   if (!got_new_wifi_credentials) {
     ESP_ERROR_CHECK(wifi_prov_mgr_is_provisioned(&provisioned));
     esp_wifi_set_config(WIFI_IF_STA, &wifi_config);

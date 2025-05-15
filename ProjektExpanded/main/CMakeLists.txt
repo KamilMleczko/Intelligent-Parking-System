@@ -18,7 +18,6 @@ idf_component_register(
         esp_wifi
         wifi_provisioning
         esp_netif
-        esp_http_client
     PRIV_REQUIRES       # optional, list the private requirements
     EMBED_TXTFILES server_root_cert.pem
 )
