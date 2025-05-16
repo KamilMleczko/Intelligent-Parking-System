@@ -52,14 +52,14 @@ class ConnectionManager:
                 f.write(data)
                 
             # Optional: process the frame for car plate detection
-            # try:
-            #     image = Image.open(io.BytesIO(data))
-            #     car_plate = detect_car_plate(image)
-            #     if car_plate:
-            #         log.info(f"Detected license plate: {car_plate} from client {client_id}")
-            #         # You could store this in a database or send a notification
-            # except Exception as e:
-            #     log.error(f"Error processing frame: {str(e)}")
+            try:
+                image = Image.open(io.BytesIO(data))
+                car_plate = detect_car_plate(image)
+                if car_plate:
+                    log.info(f"Detected license plate: {car_plate} from client {client_id}")
+                    # You could store this in a database or send a notification
+            except Exception as e:
+                log.error(f"Error processing frame: {str(e)}")
 
 manager = ConnectionManager()
 
@@ -112,11 +112,28 @@ async def stream_status():
 
 
 def main() -> None:
-    uvicorn.run(app,  host="0.0.0.0", port=8000)
+     uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8000,
+        ws="websockets",       
+        ws_ping_interval=15,           
+        ws_ping_timeout=15,          
+        timeout_keep_alive=30         
+    )
 
 
 def dev() -> None:
-    uvicorn.run("server.server:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        "server.server:app",
+        host="0.0.0.0", 
+        port=8000, 
+        reload=True,
+        ws="websockets",               
+        ws_ping_interval=15,           
+        ws_ping_timeout=15,            
+        timeout_keep_alive=30          
+        )
 
 
 if __name__ == "__main__":
