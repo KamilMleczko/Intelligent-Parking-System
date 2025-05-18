@@ -5,6 +5,14 @@
     "idf.openOcdConfigs": [
         "board/esp32-wrover-kit-3.3v.cfg"
     ],
-    "idf.portWin": "COM5",
-    "idf.flashType": "UART"
+    "idf.portWin": "COM7",
+    "idf.flashType": "UART",
+    "files.associations": {
+        "*.ign": "xml",
+        "esp_log.h": "c",
+        "freertos.h": "c",
+        "scheme_softap.h": "c",
+        "esp_http_server.h": "c"
+    },
+    "idf.monitorPort": "COM7"
 }

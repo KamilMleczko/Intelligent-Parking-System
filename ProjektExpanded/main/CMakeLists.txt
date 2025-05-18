@@ -12,12 +12,15 @@ idf_component_register(
     INCLUDE_DIRS        # optional, add here public include directories
     PRIV_INCLUDE_DIRS   # optional, add here private include directories
     REQUIRES 
-        mqtt
         nvs_flash
         driver
         esp_wifi
         wifi_provisioning
         esp_netif
+        esp-tls
+        spiffs              # for esp_vfs_spiffs_register()
+        esp_http_server     # for httpd_start() and URI handlers
+        json
     PRIV_REQUIRES       # optional, list the private requirements
     EMBED_TXTFILES server_root_cert.pem
 )
