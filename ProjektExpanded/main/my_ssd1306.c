@@ -4,8 +4,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
-
-
 #include "my_ssd1306.h" 
 #include "font8x8_basic.h" //wybrany styl fontu
 #define TAG "SSD1306"

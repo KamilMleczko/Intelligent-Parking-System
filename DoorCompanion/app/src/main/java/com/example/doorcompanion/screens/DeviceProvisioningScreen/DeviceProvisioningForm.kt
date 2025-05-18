@@ -38,8 +38,8 @@ fun DeviceProvisioningForm(
     onSubmit: (ProvisioningParams) -> Unit
 ) {
     var pop by remember { mutableStateOf("abcd1234") }
-    var ssid by remember { mutableStateOf("Mockinixinternet") }
-    var password by remember { mutableStateOf("NienienieDlaPanaTo") }
+    var ssid by remember { mutableStateOf("Logiczna Sieć") }
+    var password by remember { mutableStateOf("srzj6042") }
     var maxPeople by remember { mutableIntStateOf(30) }
     var bindDevice by remember { mutableStateOf(false) }
 
