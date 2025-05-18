@@ -1,4 +1,3 @@
-
 #include "driver/i2c_master.h"
 
 //command for oled communication datasheet(pages 28-32) https://cdn-shop.adafruit.com/datasheets/SSD1306.pdf
