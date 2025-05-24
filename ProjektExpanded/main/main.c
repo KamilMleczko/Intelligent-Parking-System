@@ -72,27 +72,26 @@ void init_hw_services(void) {
 }
 
 
-
-
-
-
 void app_main(void) {
     init_hw_services();
+    nvs_init();
     init_wifi();
+    configure_time();
+    ESP_LOGI(LOG_HW, "Starting application main function");
 
-#if ESP_CAMERA_SUPPORTED
-    if (init_camera() != ESP_OK) {
-        ESP_LOGE("CAMERA", "Failed to initialize camera!");
-        return;
-    }
+  #if ESP_CAMERA_SUPPORTED
+      if (init_camera() != ESP_OK) {
+          ESP_LOGE("CAMERA", "Failed to initialize camera!");
+          return;
+      }
 
-    xTaskCreatePinnedToCore(stream_camera_task,"stream_camera_task", 4096, NULL, 8, NULL, 1);
-    ESP_LOGI("CAMERA", "Camera streaming started");
+      xTaskCreatePinnedToCore(stream_camera_task,"stream_camera_task", 4096, NULL, 8, NULL, 1);
+      ESP_LOGI("CAMERA", "Camera streaming started");
 
-    // while (1) {
-    //     vTaskDelay(1000 / portTICK_PERIOD_MS);
-    // }
-#else
-    ESP_LOGE("CAMERA", "Camera not supported");
-#endif
-}
+      // while (1) {
+      //     vTaskDelay(1000 / portTICK_PERIOD_MS);
+      // }
+  #else
+      ESP_LOGE("CAMERA", "Camera not supported");
+  #endif
+  }
