@@ -34,3 +34,6 @@ We provision wifi credentials using SoftAP now.
 To provision wifi connect to AP with name specified by `WIFI_AP_SSID` variable with
 `WIFI_AP_PASS` variable from `credentials.h` file.
 Then head to `parking.local` in the web browser (or 192.168.4.1, if there is problem with DNS resolution)
+
+> [!WARNING]
+> You need to first flash the spiffs, so that static html files are served correctly; `idf.py spiffs-flash`
