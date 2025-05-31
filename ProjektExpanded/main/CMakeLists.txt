@@ -9,6 +9,7 @@ idf_component_register(
         my_ssd1306_init.c
         my_ssd1306.c
         camera_stream.c
+        sg90.c
     INCLUDE_DIRS        # optional, add here public include directories
     PRIV_INCLUDE_DIRS   # optional, add here private include directories
     REQUIRES 

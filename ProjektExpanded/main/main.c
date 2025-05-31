@@ -36,6 +36,9 @@
 #include "esp_camera.h"
 #include "camera_stream.h"
 
+//servo
+#include "sg90.h"
+
 #ifndef portTICK_RATE_MS
 #define portTICK_RATE_MS portTICK_PERIOD_MS
 #endif
@@ -71,27 +74,46 @@ void init_hw_services(void) {
   ESP_LOGI(LOG_HW, "Hardware services initialized");
 }
 
+void task(void *arg)
+{
+	servo_init();
+	 while(1)
+	 {
+       //servo_swerve();
+       //ESP_LOGE(LOG_HW, "Swerving");
+       servo_pos(12);
+       servo_pos(17);
+       vTaskDelay(pdMS_TO_TICKS(5000));
+  }
+}
 
 void app_main(void) {
     init_hw_services();
     nvs_init();
-    init_wifi();
-    configure_time();
-    ESP_LOGI(LOG_HW, "Starting application main function");
+  //   init_wifi();
+  //   configure_time();
+  //   ESP_LOGI(LOG_HW, "Starting application main function");
 
-  #if ESP_CAMERA_SUPPORTED
-      if (init_camera() != ESP_OK) {
-          ESP_LOGE("CAMERA", "Failed to initialize camera!");
-          return;
-      }
+  // #if ESP_CAMERA_SUPPORTED
+  //     if (init_camera() != ESP_OK) {
+  //         ESP_LOGE("CAMERA", "Failed to initialize camera!");
+  //         return;
+  //     }
 
-      xTaskCreatePinnedToCore(stream_camera_task,"stream_camera_task", 4096, NULL, 8, NULL, 1);
-      ESP_LOGI("CAMERA", "Camera streaming started");
+  //     xTaskCreatePinnedToCore(stream_camera_task,"stream_camera_task", 4096, NULL, 8, NULL, 1);
+  //     ESP_LOGI("CAMERA", "Camera streaming started");
 
-      // while (1) {
-      //     vTaskDelay(1000 / portTICK_PERIOD_MS);
-      // }
-  #else
-      ESP_LOGE("CAMERA", "Camera not supported");
-  #endif
+  // #else
+  //     ESP_LOGE("CAMERA", "Camera not supported");
+  // #endif
+  servo_init();
+	  while (1)
+    {
+        servo_open_gate();
+        vTaskDelay(pdMS_TO_TICKS(5000));
+        servo_close_gate();
+        vTaskDelay(pdMS_TO_TICKS(5000));
+    }
+    
+   
   }
