@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,10 +41,12 @@
 #include "sg90.h"
 //oled
 #include "my_ssd1306.h"
+//distance sensor
+#include "ultrasonic.h"
 #ifndef portTICK_RATE_MS
 #define portTICK_RATE_MS portTICK_PERIOD_MS
 #endif
-
+#define MAX_DISTANCE_CM 200
 typedef struct {
   const ssd1306_config_t *config;  // Pointer to the SSD1306 configuration
   i2c_handler_t *i2c_handler;      // Pointer to the I2C handler
@@ -79,6 +82,58 @@ void init_hw_services(void) {
   ESP_LOGI(LOG_HW, "Hardware services initialized");
 }
 
+float get_sensor_dist(const ultrasonic_sensor_t *sensor,
+                      const ssd1306_config_t *config,
+                      oled_display_t *oled_display,
+                      i2c_handler_t *i2c_handler) {
+  show_text(config, oled_display, i2c_handler, 1, "Measuring(cm)...");
+  char buffer[16];
+  float distance_array[10];
+  for (int i = 0; i < 10; i++) {
+    float distance;
+    esp_err_t res = ultrasonic_measure(sensor, MAX_DISTANCE_CM, &distance);
+    if (res != ESP_OK) {
+      printf("Error %d: ", res);
+      switch (res) {
+        case ESP_ERR_ULTRASONIC_PING:
+          printf("Cannot ping (device is in invalid state)\n");
+          break;
+        case ESP_ERR_ULTRASONIC_PING_TIMEOUT:
+          printf("Ping timeout (no device found)\n");
+          break;
+        case ESP_ERR_ULTRASONIC_ECHO_TIMEOUT:
+          printf("Echo timeout (i.e. distance too big)\n");
+          break;
+        default:
+          printf("%s\n", esp_err_to_name(res));
+      }
+    } else
+      printf("Distance measured: %0.04f cm\n", distance * 100);
+    snprintf(buffer, sizeof(buffer), "%0.04f", distance * 100);
+    show_text(config, oled_display, i2c_handler, 4,
+              buffer);  // 3 is display page number
+    if ((distance * 100) > MAX_DISTANCE_CM) {
+      return distance * 100;
+    }
+    distance_array[i] = distance * 100;
+    vTaskDelay(10000 / config->ticks_to_wait);
+  }
+  clear_screen(config, oled_display, i2c_handler);
+
+  float sum = 0;
+  for (int i = 0; i < 10; i++) {
+    sum = sum + distance_array[i];
+  }
+  float avg = sum / 10;
+  show_text(config, oled_display, i2c_handler, 1, "Average Distance");
+  printf("Average distance measured: %.2f cm\n", avg);
+
+  snprintf(buffer, sizeof(buffer), "%.2f", avg);
+  show_text_large(config, oled_display, i2c_handler, 3, buffer);
+  vTaskDelay(20000 / config->ticks_to_wait);
+  clear_screen(config, oled_display, i2c_handler);
+  return avg;
+}
 
 void main_loop(void *pvParameters) {
   TaskParameters *params = (TaskParameters *)pvParameters;
@@ -90,28 +145,81 @@ void main_loop(void *pvParameters) {
   show_text_large(config, oled_display, i2c_handler, 3, "Hello");
   vTaskDelay(10000 / config->ticks_to_wait);
   clear_screen(config, oled_display, i2c_handler);
+
+
+  //ultrasonic set up
+  ultrasonic_sensor_t sensor = {
+                                .trigger_pin = 32,
+                                .echo_pin = 33};
+  ultrasonic_init(&sensor);
+  // first sensor distance to the wall
+  float dist_first =
+      get_sensor_dist(&sensor, config, oled_display, i2c_handler);
+  printf("distance first: %0.04f cm\n", dist_first);
+  
+  while (dist_first > MAX_DISTANCE_CM) {
+    show_text(config, oled_display, i2c_handler, 0, "Sensor wasn't");
+    show_text(config, oled_display, i2c_handler, 1, "able to get");
+    show_text(config, oled_display, i2c_handler, 2, "correct");
+    show_text(config, oled_display, i2c_handler, 3, "measurements");
+    show_text(config, oled_display, i2c_handler, 4, "please try again");
+    show_text(config, oled_display, i2c_handler, 5, "in 5 seconds");
+    vTaskDelay(50000 / config->ticks_to_wait);
+    clear_screen(config, oled_display, i2c_handler);
+
+    // try again until measurements are correct
+    dist_first = get_sensor_dist(&sensor, config, oled_display, i2c_handler);
+    printf("distance first: %0.04f cm\n", dist_first);
+  }
+  //start checking for cars
+  clear_screen(config, oled_display, i2c_handler);
+  show_text_large(config, oled_display, i2c_handler, 3, "Start");
+
+  //gate is initially closed
+  bool gate_is_closed = true;
+  clear_screen(config, oled_display, i2c_handler);
+  show_text_large(config, oled_display, i2c_handler, 3, "CLOSE");
+
   while (1) {
-    //gate is initially closed
-    show_text_large(config, oled_display, i2c_handler, 3, "CLOSE");
-    vTaskDelay(pdMS_TO_TICKS(5000));
+    float distance1;
+    esp_err_t res1 = ultrasonic_measure(&sensor, MAX_DISTANCE_CM, &distance1);
+    (res1 != ESP_OK) ? printf("Error %d: ", res1) : printf("Distance1: %0.04f cm\n", distance1 * 100);
+    
+    //check if diff in distance is within error margin
+    float error_margin_first = dist_first * 0.2;
+    float diff_first = fabs(dist_first - distance1 * 100);
 
-    //open gate
-    clear_screen(config, oled_display, i2c_handler);
-    show_text(config, oled_display, i2c_handler, 2, "OPENING");
-    show_text(config, oled_display, i2c_handler, 3, "GATE");
-    servo_open_gate();
-    clear_screen(config, oled_display, i2c_handler);
-    show_text_large(config, oled_display, i2c_handler, 3, "OPEN");
 
-    //hold gate open for 5 sec
-    vTaskDelay(pdMS_TO_TICKS(5000));
+    if (diff_first > error_margin_first && gate_is_closed) {
+      //open gate
+      clear_screen(config, oled_display, i2c_handler);
+      show_text(config, oled_display, i2c_handler, 2, "OPENING");
+      show_text(config, oled_display, i2c_handler, 3, "GATE");
+      servo_open_gate();
+      clear_screen(config, oled_display, i2c_handler);
+      show_text_large(config, oled_display, i2c_handler, 3, "OPEN");
+      gate_is_closed = false;
 
-    //close gate
-    clear_screen(config, oled_display, i2c_handler);
-    show_text(config, oled_display, i2c_handler, 2, "CLOSING");
-    show_text(config, oled_display, i2c_handler, 3, "GATE");
-    servo_close_gate();
-    clear_screen(config, oled_display, i2c_handler);
+      //hold gate open for 5 sec
+      vTaskDelay(pdMS_TO_TICKS(5000));
+      
+      //close gate
+      clear_screen(config, oled_display, i2c_handler);
+      show_text(config, oled_display, i2c_handler, 2, "CLOSING");
+      show_text(config, oled_display, i2c_handler, 3, "GATE");
+      servo_close_gate();
+      clear_screen(config, oled_display, i2c_handler);
+      show_text_large(config, oled_display, i2c_handler, 3, "CLOSE");
+      gate_is_closed = true;
+    }
+
+   
+
+    
+
+    
+
+    
   }
 }
 void app_main(void) {
