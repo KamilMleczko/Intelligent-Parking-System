@@ -38,12 +38,17 @@
 
 //servo
 #include "sg90.h"
-
+//oled
+#include "my_ssd1306.h"
 #ifndef portTICK_RATE_MS
 #define portTICK_RATE_MS portTICK_PERIOD_MS
 #endif
 
-
+typedef struct {
+  const ssd1306_config_t *config;  // Pointer to the SSD1306 configuration
+  i2c_handler_t *i2c_handler;      // Pointer to the I2C handler
+  oled_display_t *oled_display;    // Pointer to the OLED display
+} TaskParameters;
 /*
  * @brief Function that configures time settings using SNTP.
  * It sets timezone to CEST.
@@ -74,22 +79,71 @@ void init_hw_services(void) {
   ESP_LOGI(LOG_HW, "Hardware services initialized");
 }
 
-void task(void *arg)
-{
-	servo_init();
-	 while(1)
-	 {
-       //servo_swerve();
-       //ESP_LOGE(LOG_HW, "Swerving");
-       servo_pos(12);
-       servo_pos(17);
-       vTaskDelay(pdMS_TO_TICKS(5000));
+
+void main_loop(void *pvParameters) {
+  TaskParameters *params = (TaskParameters *)pvParameters;
+
+  const ssd1306_config_t *config = params->config;
+  i2c_handler_t *i2c_handler = params->i2c_handler;
+  oled_display_t *oled_display = params->oled_display;
+  
+  show_text_large(config, oled_display, i2c_handler, 3, "Hello");
+  vTaskDelay(10000 / config->ticks_to_wait);
+  clear_screen(config, oled_display, i2c_handler);
+  while (1) {
+    //gate is initially closed
+    show_text_large(config, oled_display, i2c_handler, 3, "CLOSE");
+    vTaskDelay(pdMS_TO_TICKS(5000));
+
+    //open gate
+    clear_screen(config, oled_display, i2c_handler);
+    show_text(config, oled_display, i2c_handler, 2, "OPENING");
+    show_text(config, oled_display, i2c_handler, 3, "GATE");
+    servo_open_gate();
+    clear_screen(config, oled_display, i2c_handler);
+    show_text_large(config, oled_display, i2c_handler, 3, "OPEN");
+
+    //hold gate open for 5 sec
+    vTaskDelay(pdMS_TO_TICKS(5000));
+
+    //close gate
+    clear_screen(config, oled_display, i2c_handler);
+    show_text(config, oled_display, i2c_handler, 2, "CLOSING");
+    show_text(config, oled_display, i2c_handler, 3, "GATE");
+    servo_close_gate();
+    clear_screen(config, oled_display, i2c_handler);
   }
 }
-
 void app_main(void) {
-    init_hw_services();
-    nvs_init();
+  init_hw_services();
+  nvs_init();
+  servo_init();
+
+    // OLED initialization
+  ssd1306_config_t *config = malloc(sizeof(ssd1306_config_t));
+  i2c_handler_t *i2c_handler = malloc(sizeof(i2c_handler_t));
+  oled_display_t *oled_display = malloc(sizeof(oled_display_t));
+  *config = create_config();
+  i2c_master_init(config, i2c_handler, oled_display);
+#if CONFIG_FLIP
+  oled_display->flip_display = true;
+#endif
+  oled_cmd_init(oled_display, config, i2c_handler);
+  clear_oled_display_struct(oled_display);
+  clear_screen(config, oled_display, i2c_handler);
+  set_brightness(config, i2c_handler, 200);
+  TaskParameters *taskParameters = malloc(sizeof(TaskParameters));
+  taskParameters->config = config;
+  taskParameters->i2c_handler = i2c_handler;
+  taskParameters->oled_display = oled_display;
+
+  // Start main loop task
+  if (true ){//TODO: check if wifi is connected) {
+    xTaskCreate(main_loop, "main_loop", configMINIMAL_STACK_SIZE * 6,
+                (void *)taskParameters, 5, NULL);
+  }
+
+
   //   init_wifi();
   //   configure_time();
   //   ESP_LOGI(LOG_HW, "Starting application main function");
@@ -106,14 +160,7 @@ void app_main(void) {
   // #else
   //     ESP_LOGE("CAMERA", "Camera not supported");
   // #endif
-  servo_init();
-	  while (1)
-    {
-        servo_open_gate();
-        vTaskDelay(pdMS_TO_TICKS(5000));
-        servo_close_gate();
-        vTaskDelay(pdMS_TO_TICKS(5000));
-    }
-    
+
+}
    
-  }
+
