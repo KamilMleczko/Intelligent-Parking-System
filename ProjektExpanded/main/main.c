@@ -82,12 +82,7 @@ void init_hw_services(void) {
   ESP_LOGI(LOG_HW, "Hardware services initialized");
 }
 
-float get_sensor_dist(const ultrasonic_sensor_t *sensor,
-                      const ssd1306_config_t *config,
-                      oled_display_t *oled_display,
-                      i2c_handler_t *i2c_handler) {
-  show_text(config, oled_display, i2c_handler, 1, "Measuring(cm)...");
-  char buffer[16];
+float get_sensor_dist(const ultrasonic_sensor_t *sensor) {
   float distance_array[10];
   for (int i = 0; i < 10; i++) {
     float distance;
@@ -109,43 +104,51 @@ float get_sensor_dist(const ultrasonic_sensor_t *sensor,
       }
     } else
       printf("Distance measured: %0.04f cm\n", distance * 100);
-    snprintf(buffer, sizeof(buffer), "%0.04f", distance * 100);
-    show_text(config, oled_display, i2c_handler, 4,
-              buffer);  // 3 is display page number
     if ((distance * 100) > MAX_DISTANCE_CM) {
       return distance * 100;
     }
     distance_array[i] = distance * 100;
-    vTaskDelay(10000 / config->ticks_to_wait);
+    vTaskDelay(pdMS_TO_TICKS(1000));
   }
-  clear_screen(config, oled_display, i2c_handler);
-
   float sum = 0;
   for (int i = 0; i < 10; i++) {
     sum = sum + distance_array[i];
   }
   float avg = sum / 10;
-  show_text(config, oled_display, i2c_handler, 1, "Average Distance");
+
   printf("Average distance measured: %.2f cm\n", avg);
 
-  snprintf(buffer, sizeof(buffer), "%.2f", avg);
-  show_text_large(config, oled_display, i2c_handler, 3, buffer);
-  vTaskDelay(20000 / config->ticks_to_wait);
-  clear_screen(config, oled_display, i2c_handler);
+  vTaskDelay(pdMS_TO_TICKS(1000));
   return avg;
 }
 
 void main_loop(void *pvParameters) {
-  TaskParameters *params = (TaskParameters *)pvParameters;
-
-  const ssd1306_config_t *config = params->config;
-  i2c_handler_t *i2c_handler = params->i2c_handler;
-  oled_display_t *oled_display = params->oled_display;
   
-  show_text_large(config, oled_display, i2c_handler, 3, "Hello");
-  vTaskDelay(10000 / config->ticks_to_wait);
-  clear_screen(config, oled_display, i2c_handler);
+}
+void app_main(void) {
+  init_hw_services();
+  nvs_init();
+  init_wifi();
+  configure_time();
 
+
+  bool camera_running = false;
+  //camera
+  #if ESP_CAMERA_SUPPORTED
+      if (init_camera() != ESP_OK) {
+          ESP_LOGE("CAMERA", "Failed to initialize camera!");
+          return;
+      }
+      TaskHandle_t streamCameraTaskHandle = NULL;
+      xTaskCreatePinnedToCore(stream_camera_task,"stream_camera_task", 4096, NULL, 8, &streamCameraTaskHandle, 1);
+      vTaskSuspend(streamCameraTaskHandle);
+      // xTaskCreatePinnedToCore(stream_camera_task,"stream_camera_task", 4096, NULL, 8, NULL, 1);
+      // ESP_LOGI("CAMERA", "Camera streaming started");
+
+
+  #else
+      ESP_LOGE("CAMERA", "Camera not supported");
+  #endif
 
   //ultrasonic set up
   ultrasonic_sensor_t sensor = {
@@ -154,31 +157,19 @@ void main_loop(void *pvParameters) {
   ultrasonic_init(&sensor);
   // first sensor distance to the wall
   float dist_first =
-      get_sensor_dist(&sensor, config, oled_display, i2c_handler);
+      get_sensor_dist(&sensor);
   printf("distance first: %0.04f cm\n", dist_first);
   
   while (dist_first > MAX_DISTANCE_CM) {
-    show_text(config, oled_display, i2c_handler, 0, "Sensor wasn't");
-    show_text(config, oled_display, i2c_handler, 1, "able to get");
-    show_text(config, oled_display, i2c_handler, 2, "correct");
-    show_text(config, oled_display, i2c_handler, 3, "measurements");
-    show_text(config, oled_display, i2c_handler, 4, "please try again");
-    show_text(config, oled_display, i2c_handler, 5, "in 5 seconds");
-    vTaskDelay(50000 / config->ticks_to_wait);
-    clear_screen(config, oled_display, i2c_handler);
-
+    vTaskDelay(pdMS_TO_TICKS(3000));
     // try again until measurements are correct
-    dist_first = get_sensor_dist(&sensor, config, oled_display, i2c_handler);
+    dist_first = get_sensor_dist(&sensor);
     printf("distance first: %0.04f cm\n", dist_first);
   }
-  //start checking for cars
-  clear_screen(config, oled_display, i2c_handler);
-  show_text_large(config, oled_display, i2c_handler, 3, "Start");
 
   //gate is initially closed
   bool gate_is_closed = true;
-  clear_screen(config, oled_display, i2c_handler);
-  show_text_large(config, oled_display, i2c_handler, 3, "CLOSE");
+
 
   while (1) {
     float distance1;
@@ -191,83 +182,39 @@ void main_loop(void *pvParameters) {
 
 
     if (diff_first > error_margin_first && gate_is_closed) {
-      //open gate
-      clear_screen(config, oled_display, i2c_handler);
-      show_text(config, oled_display, i2c_handler, 2, "OPENING");
-      show_text(config, oled_display, i2c_handler, 3, "GATE");
-      servo_open_gate();
-      clear_screen(config, oled_display, i2c_handler);
-      show_text_large(config, oled_display, i2c_handler, 3, "OPEN");
-      gate_is_closed = false;
-
-      //hold gate open for 5 sec
-      vTaskDelay(pdMS_TO_TICKS(5000));
       
-      //close gate
-      clear_screen(config, oled_display, i2c_handler);
-      show_text(config, oled_display, i2c_handler, 2, "CLOSING");
-      show_text(config, oled_display, i2c_handler, 3, "GATE");
-      servo_close_gate();
-      clear_screen(config, oled_display, i2c_handler);
-      show_text_large(config, oled_display, i2c_handler, 3, "CLOSE");
-      gate_is_closed = true;
+
+      if (!camera_running) {
+        vTaskResume(streamCameraTaskHandle);
+        camera_running = true;
+
+        // look for registration plate
+        //TODO : REPLACE WITH REAL PLATE RECOGNITION
+        vTaskDelay(pdMS_TO_TICKS(10000));
+        vTaskSuspend(streamCameraTaskHandle);
+        camera_running = false;
+
+      }
+
+      if (true){ //TODO: wait for registration plate to be acknowledged via backend
+      //open gate
+        servo_init();
+        servo_open_gate();
+        gate_is_closed = false;
+
+        //hold gate open for 5 sec
+        vTaskDelay(pdMS_TO_TICKS(5000));
+        
+        //close gate
+        servo_close_gate();
+
+        gate_is_closed = true;
+      }
     }
-
-   
-
-    
-
-    
-
-    
-  }
+     vTaskDelay(pdMS_TO_TICKS(1000));
 }
-void app_main(void) {
-  init_hw_services();
-  nvs_init();
-  servo_init();
-
-    // OLED initialization
-  ssd1306_config_t *config = malloc(sizeof(ssd1306_config_t));
-  i2c_handler_t *i2c_handler = malloc(sizeof(i2c_handler_t));
-  oled_display_t *oled_display = malloc(sizeof(oled_display_t));
-  *config = create_config();
-  i2c_master_init(config, i2c_handler, oled_display);
-#if CONFIG_FLIP
-  oled_display->flip_display = true;
-#endif
-  oled_cmd_init(oled_display, config, i2c_handler);
-  clear_oled_display_struct(oled_display);
-  clear_screen(config, oled_display, i2c_handler);
-  set_brightness(config, i2c_handler, 200);
-  TaskParameters *taskParameters = malloc(sizeof(TaskParameters));
-  taskParameters->config = config;
-  taskParameters->i2c_handler = i2c_handler;
-  taskParameters->oled_display = oled_display;
-
-  // Start main loop task
-  if (true ){//TODO: check if wifi is connected) {
-    xTaskCreate(main_loop, "main_loop", configMINIMAL_STACK_SIZE * 6,
-                (void *)taskParameters, 5, NULL);
-  }
 
 
-  //   init_wifi();
-  //   configure_time();
-  //   ESP_LOGI(LOG_HW, "Starting application main function");
-
-  // #if ESP_CAMERA_SUPPORTED
-  //     if (init_camera() != ESP_OK) {
-  //         ESP_LOGE("CAMERA", "Failed to initialize camera!");
-  //         return;
-  //     }
-
-  //     xTaskCreatePinnedToCore(stream_camera_task,"stream_camera_task", 4096, NULL, 8, NULL, 1);
-  //     ESP_LOGI("CAMERA", "Camera streaming started");
-
-  // #else
-  //     ESP_LOGE("CAMERA", "Camera not supported");
-  // #endif
 
 }
    
