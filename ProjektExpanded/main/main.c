@@ -8,6 +8,7 @@
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"  //delay,mutexx,semphr i rtos
 #include "freertos/task.h"
+#include "freertos/semphr.h"  // Adding semphr for mutex
 #include "nvs_flash.h"  //non volatile storage
 
 // biblioteki esp
@@ -55,10 +56,15 @@ extern camera_fb_t *current_frame;
 extern int sock;
 extern bool socket_connected;
 
+// Shared variable for ultrasonic detection
+static volatile bool car_detected = false;
+static SemaphoreHandle_t car_detection_mutex = NULL;
+
 // Camera streaming task moved from camera_stream.c
 void stream_camera_task(void *pvParameters) {
     const TickType_t delay_time = 1000 / STREAM_FPS / portTICK_PERIOD_MS;
     int consecutive_failures = 0;
+    bool is_car_detected = false;
 
     while (true) {
         if (!socket_connected && !connect_socket()) {
@@ -67,24 +73,37 @@ void stream_camera_task(void *pvParameters) {
             continue;
         }
 
-        camera_fb_t *fb = esp_camera_fb_get();
-        if (!fb) {
-            ESP_LOGE("CAMERA_STREAM", "Camera capture failed");
-            vTaskDelay(delay_time);
-            continue;
+        // Safely check car detection status
+        if (xSemaphoreTake(car_detection_mutex, portMAX_DELAY) == pdTRUE) {
+            is_car_detected = car_detected;
+            xSemaphoreGive(car_detection_mutex);
         }
 
-        if (!send_frame_over_websocket(fb->buf, fb->len)) {
-            consecutive_failures++;
-            ESP_LOGE("CAMERA_STREAM", "Failed to send frame (failure #%d)", consecutive_failures);
-            if (consecutive_failures > 5) {
-                vTaskDelay(5000 / portTICK_PERIOD_MS);
+        // Only capture and send frame if car is detected
+        if (is_car_detected) {
+            camera_fb_t *fb = esp_camera_fb_get();
+            if (!fb) {
+                ESP_LOGE("CAMERA_STREAM", "Camera capture failed");
+                vTaskDelay(delay_time);
+                continue;
             }
-        } else {
-            consecutive_failures = 0;
-        }
 
-        esp_camera_fb_return(fb);
+            if (!send_frame_over_websocket(fb->buf, fb->len)) {
+                consecutive_failures++;
+                ESP_LOGE("CAMERA_STREAM", "Failed to send frame (failure #%d)", consecutive_failures);
+                if (consecutive_failures > 5) {
+                    vTaskDelay(5000 / portTICK_PERIOD_MS);
+                }
+            } else {
+                consecutive_failures = 0;
+                ESP_LOGI("CAMERA_STREAM", "Frame sent - car detected");
+            }
+
+            esp_camera_fb_return(fb);
+        } else {
+            ESP_LOGD("CAMERA_STREAM", "No car detected, skipping frame");
+        }
+        
         vTaskDelay(delay_time);
     }
 }
@@ -168,6 +187,13 @@ void app_main(void) {
     configure_time();
     ESP_LOGI(LOG_HW, "Starting application main function");
 
+    // Initialize mutex for thread safety
+    car_detection_mutex = xSemaphoreCreateMutex();
+    if (car_detection_mutex == NULL) {
+        ESP_LOGE("MAIN", "Failed to create car detection mutex");
+        return;
+    }
+
     ultrasonic_sensor_t sensor = {// FIRST SENSOR
                                   .trigger_pin = TRIGGER_GPIO,
                                   .echo_pin = ECHO_GPIO};
@@ -216,11 +242,18 @@ void app_main(void) {
       float error_margin_first = dist_first * 0.2;
       float diff_first = fabs(dist_first - distance1 * 100);
 
-
-      if (diff_first > error_margin_first) {
-        ESP_LOGE("ULTRASONIC", "Car detected");
+      // Update car detection status with mutex protection
+      if (xSemaphoreTake(car_detection_mutex, portMAX_DELAY) == pdTRUE) {
+        if (diff_first > error_margin_first) {
+          ESP_LOGE("ULTRASONIC", "Car detected");
+          car_detected = true;
+        } else {
+          car_detected = false;
+        }
+        xSemaphoreGive(car_detection_mutex);
       }
-    vTaskDelay(100);
+      
+      vTaskDelay(100);
     }
 
 
