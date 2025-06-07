@@ -55,39 +55,6 @@ extern camera_fb_t *current_frame;
 extern int sock;
 extern bool socket_connected;
 
-// Camera streaming task moved from camera_stream.c
-void stream_camera_task(void *pvParameters) {
-    const TickType_t delay_time = 1000 / STREAM_FPS / portTICK_PERIOD_MS;
-    int consecutive_failures = 0;
-
-    while (true) {
-        if (!socket_connected && !connect_socket()) {
-            ESP_LOGW("CAMERA_STREAM", "Failed to connect to server, retrying...");
-            vTaskDelay(5000 / portTICK_PERIOD_MS);
-            continue;
-        }
-
-        camera_fb_t *fb = esp_camera_fb_get();
-        if (!fb) {
-            ESP_LOGE("CAMERA_STREAM", "Camera capture failed");
-            vTaskDelay(delay_time);
-            continue;
-        }
-
-        if (!send_frame_over_websocket(fb->buf, fb->len)) {
-            consecutive_failures++;
-            ESP_LOGE("CAMERA_STREAM", "Failed to send frame (failure #%d)", consecutive_failures);
-            if (consecutive_failures > 5) {
-                vTaskDelay(5000 / portTICK_PERIOD_MS);
-            }
-        } else {
-            consecutive_failures = 0;
-        }
-
-        esp_camera_fb_return(fb);
-        vTaskDelay(delay_time);
-    }
-}
 
 float get_sensor_dist(const ultrasonic_sensor_t *sensor) {
  
@@ -161,14 +128,11 @@ void init_hw_services(void) {
 }
 
 
-void app_main(void) {
-    init_hw_services();
-    nvs_init();
-    init_wifi();
-    configure_time();
-    ESP_LOGI(LOG_HW, "Starting application main function");
 
-    ultrasonic_sensor_t sensor = {// FIRST SENSOR
+// Camera streaming task moved from camera_stream.c
+void stream_camera_task(void *pvParameters) {
+
+   ultrasonic_sensor_t sensor = {// FIRST SENSOR
                                   .trigger_pin = TRIGGER_GPIO,
                                   .echo_pin = ECHO_GPIO};
     ultrasonic_init(&sensor);
@@ -181,20 +145,13 @@ void app_main(void) {
     }
 
 
-    
-    #if ESP_CAMERA_SUPPORTED
-        if (init_camera() != ESP_OK) {
-            ESP_LOGE("CAMERA", "Failed to initialize camera!");
-            return;
-        }
 
-        xTaskCreatePinnedToCore(stream_camera_task,"stream_camera_task", 4096, NULL, 8, NULL, 1);
-        ESP_LOGI("CAMERA", "Camera streaming started");
-    #else
-        ESP_LOGE("CAMERA", "Camera not supported");
-    #endif
-
+    const TickType_t delay_time = 1000 / STREAM_FPS / portTICK_PERIOD_MS;
+    int consecutive_failures = 0;
+    bool object_detected = false;
     while (true) {
+
+      // Ultrasonic sensor
       float distance1;
       esp_err_t res1 = ultrasonic_measure(&sensor, MAX_DISTANCE_CM, &distance1);
       if (res1 != ESP_OK) {
@@ -219,13 +176,60 @@ void app_main(void) {
 
       if (diff_first > error_margin_first) {
         ESP_LOGE("ULTRASONIC", "Car detected");
+        object_detected = true;
       }
-    vTaskDelay(100);
-    }
+      else {
+        object_detected = false;
+      }
 
+
+        if (!socket_connected && !connect_socket()) {
+            ESP_LOGW("CAMERA_STREAM", "Failed to connect to server, retrying...");
+            vTaskDelay(5000 / portTICK_PERIOD_MS);
+            continue;
+        }
+
+        camera_fb_t *fb = esp_camera_fb_get();
+        if (!fb) {
+            ESP_LOGE("CAMERA_STREAM", "Camera capture failed");
+            vTaskDelay(delay_time);
+            continue;
+        }
+
+        if (!send_frame_over_websocket(fb->buf, fb->len)) {
+            consecutive_failures++;
+            ESP_LOGE("CAMERA_STREAM", "Failed to send frame (failure #%d)", consecutive_failures);
+            if (consecutive_failures > 5) {
+                vTaskDelay(5000 / portTICK_PERIOD_MS);
+            }
+        } else {
+            consecutive_failures = 0;
+        }
+
+        esp_camera_fb_return(fb);
+        vTaskDelay(delay_time);
+    }
+}
+
+void app_main(void) {
+    init_hw_services();
+    nvs_init();
+    init_wifi();
+    configure_time();
+    ESP_LOGI(LOG_HW, "Starting application main function");
+
+   
 
     
-
-  
+    #if ESP_CAMERA_SUPPORTED
+        if (init_camera() != ESP_OK) {
+            ESP_LOGE("CAMERA", "Failed to initialize camera!");
+            return;
+        }
+        xTaskCreatePinnedToCore(stream_camera_task,"stream_camera_task", 4096, NULL, 8, NULL, 1);
+        ESP_LOGI("CAMERA", "Camera streaming started");
+    #else
+        ESP_LOGE("CAMERA", "Camera not supported");
+    #endif
 
   }
