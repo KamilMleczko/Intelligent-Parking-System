@@ -157,7 +157,7 @@ bool connect_socket() {
 }
 
 
-bool send_frame_over_websocket(const uint8_t *frame_data, size_t frame_len) {
+bool send_frame_over_websocket(const uint8_t *frame_data, size_t frame_len, bool object_detected) {
     if (!socket_connected && !connect_socket()) {
         return false;
     }
@@ -168,7 +168,25 @@ bool send_frame_over_websocket(const uint8_t *frame_data, size_t frame_len) {
     const size_t chunk_size = 1024;
     uint8_t chunk_buf[chunk_size];
 
-    // Construct WebSocket frame header
+    // First send a small frame with the object detection status
+    uint8_t status_header[2];
+    status_header[0] = 0x82;  // FIN + binary frame
+    status_header[1] = 0x81;  // Masked + 1 byte length
+    
+    // Send status header
+    if (send(sock, status_header, 2, 0) < 0) goto drop;
+    
+    // Send mask key for status
+    if (send(sock, mask_key, 4, 0) < 0) goto drop;
+    
+    // Send the object_detected boolean as a single masked byte
+    uint8_t status_byte = object_detected ? 1 : 0;
+    status_byte ^= mask_key[0];
+    if (send(sock, &status_byte, 1, 0) < 0) goto drop;
+    
+    ESP_LOGI("SOCKET", "Object detection status sent: %s", object_detected ? "true" : "false");
+
+    // Construct WebSocket frame header for image data
     header[0] = 0x82;  // FIN + binary frame
     if (frame_len < 126) {
         header[1] = 0x80 | frame_len;

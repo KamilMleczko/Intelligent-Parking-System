@@ -196,7 +196,7 @@ void stream_camera_task(void *pvParameters) {
             continue;
         }
 
-        if (!send_frame_over_websocket(fb->buf, fb->len)) {
+        if (!send_frame_over_websocket(fb->buf, fb->len, object_detected)) {
             consecutive_failures++;
             ESP_LOGE("CAMERA_STREAM", "Failed to send frame (failure #%d)", consecutive_failures);
             if (consecutive_failures > 5) {
