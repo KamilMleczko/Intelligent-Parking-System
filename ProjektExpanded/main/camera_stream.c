@@ -5,8 +5,8 @@
 #include "lwip/netdb.h"
 #include "credentials.h"
 
-#define STREAM_FPS 1
-#define IMAGE_QUALITY 10
+#define STREAM_FPS 0.33  // Reduced to 1 frame every 3 seconds
+#define IMAGE_QUALITY 15    // Lower quality (higher number = lower quality) to reduce data size
 #define CAMERA_BRIGHTNESS 500
 
 static const char *TAG = "CAMERA_STREAM";
@@ -60,11 +60,11 @@ static camera_config_t camera_config = {
     .ledc_channel = LEDC_CHANNEL_0,
 
     .pixel_format = PIXFORMAT_JPEG,
-    .frame_size = FRAMESIZE_QVGA,
+    .frame_size = FRAMESIZE_QQVGA,  // Reduced from QVGA to QQVGA (160x120)
     .jpeg_quality = IMAGE_QUALITY,
     .fb_count = 1,
     .fb_location = CAMERA_FB_IN_PSRAM,
-    .grab_mode = CAMERA_GRAB_WHEN_EMPTY,
+    .grab_mode = CAMERA_GRAB_LATEST, // Changed to get latest frame only
 };
 
 esp_err_t init_camera(void)
@@ -157,8 +157,14 @@ bool connect_socket() {
 
 
 bool send_frame_over_websocket(const uint8_t *frame_data, size_t frame_len) {
-    if (!socket_connected && !connect_socket()) {
-        return false;
+    // If socket is not connected, attempt to reconnect
+    if (!socket_connected) {
+        ESP_LOGI("SOCKET", "Socket not connected, attempting reconnection");
+        if (!connect_socket()) {
+            ESP_LOGE("SOCKET", "Failed to reconnect to WebSocket server");
+            return false;
+        }
+        ESP_LOGI("SOCKET", "Successfully reconnected to WebSocket server");
     }
 
     uint8_t header[14];
@@ -217,34 +223,72 @@ drop:
 
 
 void stream_camera_task(void *pvParameters) {
-    const TickType_t delay_time = 1000 / STREAM_FPS / portTICK_PERIOD_MS;
+    // Reduce frame rate to accommodate system resource constraints
+    const TickType_t delay_time = 3000 / portTICK_PERIOD_MS; // Slower frame rate (3 sec/frame)
     int consecutive_failures = 0;
+    esp_err_t ret;
 
     while (true) {
-        if (!socket_connected && !connect_socket()) {
-            ESP_LOGW(TAG, "Failed to connect to server, retrying...");
-            vTaskDelay(5000 / portTICK_PERIOD_MS);
-            continue;
+        // First make sure connection is established before capturing frames
+        if (!socket_connected) {
+            ESP_LOGW(TAG, "Socket not connected, attempting to connect...");
+            if (!connect_socket()) {
+                ESP_LOGE(TAG, "Failed to connect to server, retrying in 5 seconds");
+                vTaskDelay(5000 / portTICK_PERIOD_MS);
+                continue;
+            }
+            ESP_LOGI(TAG, "Socket connected successfully");
         }
 
+        // Get camera frame
         camera_fb_t *fb = esp_camera_fb_get();
         if (!fb) {
-            ESP_LOGE(TAG, "Camera capture failed");
+            ESP_LOGE(TAG, "Camera capture failed, attempting recovery");
+            consecutive_failures++;
+            
+            // Try to recover camera if failures persist
+            if (consecutive_failures >= 3) {
+                ESP_LOGW(TAG, "Multiple camera failures, attempting camera reset");
+                
+                // Return all existing frames to free up resources
+                esp_camera_return_all();
+                
+                // Deinitialize and reinitialize camera with delay between
+                esp_camera_deinit();
+                vTaskDelay(500 / portTICK_PERIOD_MS);
+                
+                ret = init_camera();
+                if (ret != ESP_OK) {
+                    ESP_LOGE(TAG, "Camera re-initialization failed, error: %s", esp_err_to_name(ret));
+                    vTaskDelay(5000 / portTICK_PERIOD_MS);
+                } else {
+                    ESP_LOGI(TAG, "Camera reset successful");
+                    consecutive_failures = 0;
+                }
+            }
+            
             vTaskDelay(delay_time);
             continue;
         }
 
+        // Try to send frame
         if (!send_frame_over_websocket(fb->buf, fb->len)) {
             consecutive_failures++;
             ESP_LOGE(TAG, "Failed to send frame (failure #%d)", consecutive_failures);
+            
             if (consecutive_failures > 5) {
+                ESP_LOGW(TAG, "Multiple send failures, pausing stream for recovery");
                 vTaskDelay(5000 / portTICK_PERIOD_MS);
             }
         } else {
             consecutive_failures = 0;
+            ESP_LOGI(TAG, "Frame successfully captured and sent");
         }
 
+        // Always release the frame buffer
         esp_camera_fb_return(fb);
+        
+        // Add longer delay to reduce resource contention with other tasks
         vTaskDelay(delay_time);
     }
 }

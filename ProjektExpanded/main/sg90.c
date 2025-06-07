@@ -152,34 +152,58 @@ static const char TAG[8] = "pwm_tag";
 
 void servo_open_gate(void)
 {
+	servo_init();
     const int start_duty = 605;
     const int mid_duty = 1000;
     int duty = start_duty;
+    int timeout_counter = 0;
+    const int MAX_TIMEOUT = 500; // Maximum iterations to prevent infinite loops
 
     // Move from start to 90°
-	ESP_LOGI(TAG, "OPENING GATE");
-    for (; duty <= mid_duty; duty++) {
+    ESP_LOGI(TAG, "OPENING GATE");
+    for (; duty <= mid_duty && timeout_counter < MAX_TIMEOUT; duty++) {
         ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, duty);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL);
         vTaskDelay(pdMS_TO_TICKS(10));
+        timeout_counter++;
     }
-	
-    // Hold at 90°
-	ESP_LOGI(TAG, "GATE OPENED");
+    
+    // Force final position regardless of loop completion
+    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, mid_duty);
+    ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL);
+    
+    if (timeout_counter >= MAX_TIMEOUT) {
+        ESP_LOGW(TAG, "Gate opening timed out, forcing to open position");
+    } else {
+        ESP_LOGI(TAG, "GATE OPENED");
+    }
 }
 
 void servo_close_gate(void)
 {
-	const int start_duty = 605;
+	servo_init();
+    const int start_duty = 605;
     const int mid_duty = 1000;
-	int duty = mid_duty;
+    int duty = mid_duty;
+    int timeout_counter = 0;
+    const int MAX_TIMEOUT = 500; // Maximum iterations to prevent infinite loops
 
-	// Move back to initial position
-	ESP_LOGI(TAG, "CLOSING GATE");
-    for (; duty >= start_duty; duty--) {
+    // Move back to initial position
+    ESP_LOGI(TAG, "CLOSING GATE");
+    for (; duty >= start_duty && timeout_counter < MAX_TIMEOUT; duty--) {
         ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, duty);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL);
         vTaskDelay(pdMS_TO_TICKS(10));
+        timeout_counter++;
     }
-	ESP_LOGI(TAG, "GATE CLOSED");
+    
+    // Force final position regardless of loop completion
+    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, start_duty);
+    ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL);
+    
+    if (timeout_counter >= MAX_TIMEOUT) {
+        ESP_LOGW(TAG, "Gate closing timed out, forcing to closed position");
+    } else {
+        ESP_LOGI(TAG, "GATE CLOSED");
+    }
 }
