@@ -5,12 +5,13 @@
 #include "lwip/netdb.h"
 #include "credentials.h"
 
-#define STREAM_FPS 1
+#define STREAM_FPS 0.5
 #define IMAGE_QUALITY 10
 #define CAMERA_BRIGHTNESS 500
 
 static const char *TAG = "CAMERA_STREAM";
 
+// Making these variables globally accessible
 camera_fb_t *current_frame = NULL;
 int sock = -1;
 bool socket_connected = false;
@@ -213,38 +214,4 @@ drop:
     close(sock);
     sock = -1;
     return false;
-}
-
-
-void stream_camera_task(void *pvParameters) {
-    const TickType_t delay_time = 1000 / STREAM_FPS / portTICK_PERIOD_MS;
-    int consecutive_failures = 0;
-
-    while (true) {
-        if (!socket_connected && !connect_socket()) {
-            ESP_LOGW(TAG, "Failed to connect to server, retrying...");
-            vTaskDelay(5000 / portTICK_PERIOD_MS);
-            continue;
-        }
-
-        camera_fb_t *fb = esp_camera_fb_get();
-        if (!fb) {
-            ESP_LOGE(TAG, "Camera capture failed");
-            vTaskDelay(delay_time);
-            continue;
-        }
-
-        if (!send_frame_over_websocket(fb->buf, fb->len)) {
-            consecutive_failures++;
-            ESP_LOGE(TAG, "Failed to send frame (failure #%d)", consecutive_failures);
-            if (consecutive_failures > 5) {
-                vTaskDelay(5000 / portTICK_PERIOD_MS);
-            }
-        } else {
-            consecutive_failures = 0;
-        }
-
-        esp_camera_fb_return(fb);
-        vTaskDelay(delay_time);
-    }
 }

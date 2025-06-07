@@ -44,6 +44,51 @@
 #define MAX_DISTANCE_CM 200  // 2m max
 #define TRIGGER_GPIO 32
 #define ECHO_GPIO 33
+
+// Added camera streaming parameters
+#define STREAM_FPS 0.5
+#define IMAGE_QUALITY 10
+#define CAMERA_BRIGHTNESS 500
+
+// External variables needed for camera streaming
+extern camera_fb_t *current_frame;
+extern int sock;
+extern bool socket_connected;
+
+// Camera streaming task moved from camera_stream.c
+void stream_camera_task(void *pvParameters) {
+    const TickType_t delay_time = 1000 / STREAM_FPS / portTICK_PERIOD_MS;
+    int consecutive_failures = 0;
+
+    while (true) {
+        if (!socket_connected && !connect_socket()) {
+            ESP_LOGW("CAMERA_STREAM", "Failed to connect to server, retrying...");
+            vTaskDelay(5000 / portTICK_PERIOD_MS);
+            continue;
+        }
+
+        camera_fb_t *fb = esp_camera_fb_get();
+        if (!fb) {
+            ESP_LOGE("CAMERA_STREAM", "Camera capture failed");
+            vTaskDelay(delay_time);
+            continue;
+        }
+
+        if (!send_frame_over_websocket(fb->buf, fb->len)) {
+            consecutive_failures++;
+            ESP_LOGE("CAMERA_STREAM", "Failed to send frame (failure #%d)", consecutive_failures);
+            if (consecutive_failures > 5) {
+                vTaskDelay(5000 / portTICK_PERIOD_MS);
+            }
+        } else {
+            consecutive_failures = 0;
+        }
+
+        esp_camera_fb_return(fb);
+        vTaskDelay(delay_time);
+    }
+}
+
 float get_sensor_dist(const ultrasonic_sensor_t *sensor) {
  
   float distance_array[10];
