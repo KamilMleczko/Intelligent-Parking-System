@@ -100,13 +100,6 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
         log.error(f"WebSocket error for client {client_id}: {str(e)}")
         manager.disconnect(client_id)
 
-@app.post("/upload_picture/")
-async def upload_picture(file: UploadFile):
-    file_location = os.path.join(UPLOAD_FOLDER, file.filename)
-    with open(file_location, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    return JSONResponse({"filename": file.filename, "saved_to": file_location})
 
 @app.post("/detect_plate/")
 async def detect_plate(file: UploadFile) -> JSONResponse:
