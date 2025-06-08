@@ -5,12 +5,13 @@
 #include "lwip/netdb.h"
 #include "credentials.h"
 
-#define STREAM_FPS 1
+#define STREAM_FPS 0.5
 #define IMAGE_QUALITY 10
 #define CAMERA_BRIGHTNESS 500
 
 static const char *TAG = "CAMERA_STREAM";
 
+// Making these variables globally accessible
 camera_fb_t *current_frame = NULL;
 int sock = -1;
 bool socket_connected = false;
@@ -156,7 +157,7 @@ bool connect_socket() {
 }
 
 
-bool send_frame_over_websocket(const uint8_t *frame_data, size_t frame_len) {
+bool send_frame_over_websocket(const uint8_t *frame_data, size_t frame_len, bool object_detected) {
     if (!socket_connected && !connect_socket()) {
         return false;
     }
@@ -167,7 +168,25 @@ bool send_frame_over_websocket(const uint8_t *frame_data, size_t frame_len) {
     const size_t chunk_size = 1024;
     uint8_t chunk_buf[chunk_size];
 
-    // Construct WebSocket frame header
+    // First send a small frame with the object detection status
+    uint8_t status_header[2];
+    status_header[0] = 0x82;  // FIN + binary frame
+    status_header[1] = 0x81;  // Masked + 1 byte length
+    
+    // Send status header
+    if (send(sock, status_header, 2, 0) < 0) goto drop;
+    
+    // Send mask key for status
+    if (send(sock, mask_key, 4, 0) < 0) goto drop;
+    
+    // Send the object_detected boolean as a single masked byte
+    uint8_t status_byte = object_detected ? 1 : 0;
+    status_byte ^= mask_key[0];
+    if (send(sock, &status_byte, 1, 0) < 0) goto drop;
+    
+    ESP_LOGI("SOCKET", "Object detection status sent: %s", object_detected ? "true" : "false");
+
+    // Construct WebSocket frame header for image data
     header[0] = 0x82;  // FIN + binary frame
     if (frame_len < 126) {
         header[1] = 0x80 | frame_len;
@@ -213,38 +232,4 @@ drop:
     close(sock);
     sock = -1;
     return false;
-}
-
-
-void stream_camera_task(void *pvParameters) {
-    const TickType_t delay_time = 1000 / STREAM_FPS / portTICK_PERIOD_MS;
-    int consecutive_failures = 0;
-
-    while (true) {
-        if (!socket_connected && !connect_socket()) {
-            ESP_LOGW(TAG, "Failed to connect to server, retrying...");
-            vTaskDelay(5000 / portTICK_PERIOD_MS);
-            continue;
-        }
-
-        camera_fb_t *fb = esp_camera_fb_get();
-        if (!fb) {
-            ESP_LOGE(TAG, "Camera capture failed");
-            vTaskDelay(delay_time);
-            continue;
-        }
-
-        if (!send_frame_over_websocket(fb->buf, fb->len)) {
-            consecutive_failures++;
-            ESP_LOGE(TAG, "Failed to send frame (failure #%d)", consecutive_failures);
-            if (consecutive_failures > 5) {
-                vTaskDelay(5000 / portTICK_PERIOD_MS);
-            }
-        } else {
-            consecutive_failures = 0;
-        }
-
-        esp_camera_fb_return(fb);
-        vTaskDelay(delay_time);
-    }
 }
