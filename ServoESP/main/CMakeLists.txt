@@ -6,8 +6,9 @@ idf_component_register(
         main.c
         utils.c
         wifi.c
-        camera_stream.c
-        ultrasonic.c
+        my_ssd1306_init.c
+        my_ssd1306.c       
+        sg90.c
     INCLUDE_DIRS        # optional, add here public include directories
     PRIV_INCLUDE_DIRS   # optional, add here private include directories
     REQUIRES 

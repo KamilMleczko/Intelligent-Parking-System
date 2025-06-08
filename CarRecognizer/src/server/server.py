@@ -41,7 +41,7 @@ class ConnectionManager:
                 f"Client {client_id} disconnected. Total clients: {len(self.active_connections)}",
             )
 
-    async def receive_frame(self, client_id: str, data: bytes):
+    async def receive_frame(self, client_id: str, data: bytes, object_detected: bool):
         """Process incoming frame data from the ESP32 camera"""
         if client_id in self.active_connections:
             # Save the latest frame for this client
@@ -54,26 +54,26 @@ class ConnectionManager:
             log.debug(filename)
             with open(filename, "wb") as f:
                 f.write(data)
+            
+            # Process the frame for car plate detection only if object is detected
+            if object_detected:
+                try:
+                    image = Image.open(io.BytesIO(data))
+                    car_plate = detect_car_plate(image)
+                    car_model_result = predict_car_model(image)
+                    if car_plate:
+                        log.info(f"Detected license plate: {car_plate} from client {client_id}")
+                        # You could store this in a database or send a notification
 
-            # Optional: process the frame for car plate detection
-            try:
-                image = Image.open(io.BytesIO(data))
-                car_plate = detect_car_plate(image)
-                car_model_result = predict_car_model(image)
-
-                if car_plate:
-                    log.info(
-                        f"Detected license plate: {car_plate} from client {client_id}",
-                    )
-
-                if car_model_result:
-                    model_name, confidence = car_model_result
-                    log.info(
-                        f"Detected car model: {model_name} (confidence: {confidence:.2f}) from client {client_id}",
-                    )
-
-            except Exception as e:
-                log.error(f"Error processing frame: {e!s}")
+                    if car_model_result:
+                        model_name, confidence = car_model_result
+                        log.info(
+                            f"Detected car model: {model_name} (confidence: {confidence:.2f}) from client {client_id}",
+                        )
+                except Exception as e:
+                    log.error(f"Error processing frame: {str(e)}")
+            else:
+                log.info(f"No objects in front of camera for client {client_id}")
 
 
 manager = ConnectionManager()
@@ -87,13 +87,26 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
         log.info(f"New WebSocket connection from client {client_id}")
 
         while True:
-            # Receive binary frame data from ESP32
-            data = await websocket.receive_bytes()
-            log.debug(f"Received frame from {client_id}, size: {len(data)} bytes")
-            await manager.receive_frame(client_id, data)
-
+            # ESP32 will send two separate websocket frames:
+            # 1. First a small frame with object detection status
+            # 2. Then the image data frame
+            
+            # Receive the binary message with object detection status
+            status_data = await websocket.receive_bytes()
+            # The ESP32 sends a single byte where 1 = object detected, 0 = no object
+            object_detected = bool(status_data[0]) if status_data else False
+            log.debug(f"Received object detection status from {client_id}: {object_detected}")
+            
+            # Now receive the image frame data
+            frame_data = await websocket.receive_bytes()
+            log.debug(f"Received frame from {client_id}, size: {len(frame_data)} bytes")
+            
+            # Process both the status and frame
+            await manager.receive_frame(client_id, frame_data, object_detected)
+            
             # Send acknowledgment back to the client
             await websocket.send_text("Frame received")
+
     except WebSocketDisconnect:
         log.info(f"WebSocket disconnected for client {client_id}")
         manager.disconnect(client_id)
@@ -101,14 +114,6 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
         log.error(f"WebSocket error for client {client_id}: {e!s}")
         manager.disconnect(client_id)
 
-
-@app.post("/upload_picture/")
-async def upload_picture(file: UploadFile):
-    file_location = os.path.join(UPLOAD_FOLDER, file.filename)
-    with open(file_location, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    return JSONResponse({"filename": file.filename, "saved_to": file_location})
 
 
 @app.post("/detect_plate/")
