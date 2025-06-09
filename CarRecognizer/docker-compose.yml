@@ -4,3 +4,12 @@ services:
     build: .
     ports: 
       - 8000:8000
+    volumes:
+      - models/carPlateDetector.pt:models/carPlateDetector.pt:ro
+
+  car-recognizer:
+    build: .
+    ports:
+      - 8001:8000
+    volumes:
+      - models/carModelRecognizer.pkl:models/carModelRecognizer.pkl:ro
