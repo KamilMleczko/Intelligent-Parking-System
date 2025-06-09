@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import easyocr
 import numpy as np
+from fastai.vision.all import load_learner
 from PIL import Image
 from ultralytics import YOLO
 
@@ -66,3 +67,39 @@ def detect_car_plate(image: Image.Image) -> str | None:
 
     highest_confidence_prediction = max(predictions, key=lambda x: x.confidence)
     return highest_confidence_prediction.plate_number
+
+
+@dataclass
+class CarModelPrediction:
+    model_name: str
+    confidence: float
+
+
+CarModel_MODEL_PATH = Path("models/carModelRecognizer.pkl")
+car_model_recognizer = load_learner(CarModel_MODEL_PATH)
+
+
+def predict_car_model(image: Image.Image) -> tuple[str, float] | None:
+    """
+    Predicts the car model from an image using a fastai model.
+
+    Parameters:
+        image: PIL Image object containing the car
+
+    Returns:
+        Tuple of (model_name, confidence) or None if prediction fails
+    """
+    if car_model_recognizer is None:
+        return None
+
+    try:
+        image = image.resize((224, 224))
+        pred_class, pred_idx, probs = car_model_recognizer.predict(image)
+        confidence = float(probs[pred_idx])
+        if confidence < 0.3: 
+            return None
+        return str(pred_class), confidence
+
+    except Exception as e:
+        print(f"Error during car model prediction: {e}")
+        return None
