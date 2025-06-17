@@ -32,13 +32,14 @@
 #include "utils.h"
 #include "wifi.h"
 #include "esp_err.h"
-
+#include "ws_listener.h"
 #ifndef portTICK_RATE_MS
 #define portTICK_RATE_MS portTICK_PERIOD_MS
 #endif
 
 #include "sg90.h"
 #include "my_ssd1306.h"
+#include "app_context.h"
 
 
 typedef struct {
@@ -76,64 +77,38 @@ void init_hw_services(void) {
 }
 
 
-
-void main_loop(void *pvParameters) {
-  TaskParameters *params = (TaskParameters *)pvParameters;
-
-  const ssd1306_config_t *config = params->config;
-  i2c_handler_t *i2c_handler = params->i2c_handler;
-  oled_display_t *oled_display = params->oled_display;
-
-  show_text_large(config, oled_display, i2c_handler, 3, "Hello");
-  vTaskDelay(10000 / config->ticks_to_wait);
-  clear_screen(config, oled_display, i2c_handler);
-
-
-  bool received_message = true; //here add message receiving logic 
-  while(1){
-    if (received_message){ //if received message is true, open gate , wait 5 seconds and close gate
-    clear_screen(config, oled_display, i2c_handler);
-    show_text(config, oled_display, i2c_handler, 3, "Opening gate");
-    servo_open_gate();
-    clear_screen(config, oled_display, i2c_handler);
-    show_text(config, oled_display, i2c_handler, 3, "Gate Open");
-    vTaskDelay(3000);
-    clear_screen(config, oled_display, i2c_handler);
-    show_text(config, oled_display, i2c_handler, 3, "Closing gate");
-    servo_close_gate();
-    clear_screen(config, oled_display, i2c_handler);
-    show_text(config, oled_display, i2c_handler, 3, "Gate Closed");
-    vTaskDelay(1000);
-    }
-  } 
-
-}
-
 void app_main(void) {
+    // 1) Initialize hardware services (NVS, logging)
+    ESP_LOGI(TAG, "Initializing hardware services");
+    nvs_flash_init();
     init_hw_services();
-    nvs_init();
+
+    // 2) Start Wi-Fi (AP+STA provisioning UI into SoftAP)
+    ESP_LOGI(TAG, "Starting Wi-Fi provisioning");
     init_wifi();
+
+    // 3) Synchronize time via SNTP
+    ESP_LOGI(TAG, "Configuring system time");
     configure_time();
 
+    // 4) Initialize shared application context (OLED, servo, etc.)
+    ESP_LOGI(TAG, "Initializing application context");
+    app_context_init();
 
-    ssd1306_config_t *config = malloc(sizeof(ssd1306_config_t));
-    i2c_handler_t *i2c_handler = malloc(sizeof(i2c_handler_t));
-    oled_display_t *oled_display = malloc(sizeof(oled_display_t));
-    *config = create_config();
-    i2c_master_init(config, i2c_handler, oled_display);
-  #if CONFIG_FLIP
-    oled_display->flip_display = true;
-  #endif
-    oled_cmd_init(oled_display, config, i2c_handler);
-    clear_oled_display_struct(oled_display);
-    clear_screen(config, oled_display, i2c_handler);
-    set_brightness(config, i2c_handler, 200);
-    TaskParameters *taskParameters = malloc(sizeof(TaskParameters));
-    taskParameters->config = config;
-    taskParameters->i2c_handler = i2c_handler;
-    taskParameters->oled_display = oled_display;
+    // Display initial closed state
+    clear_screen(&app_ctx.oled_cfg, &app_ctx.oled_disp, &app_ctx.oled_i2c);
+    show_text(&app_ctx.oled_cfg, &app_ctx.oled_disp, &app_ctx.oled_i2c, 3, (char*)"Gate Closed");
 
-    xTaskCreate(main_loop, "main_loop", configMINIMAL_STACK_SIZE * 6,
-                (void *)taskParameters, 5, NULL);
+    // 5) Start passive WebSocket listener for gate commands
+    ESP_LOGI(TAG, "Starting WebSocket gate listener");
+    if (!start_ws_listener()) {
+        ESP_LOGE(TAG, "Failed to start WebSocket listener");
+        // Optionally blink LED or reset
+    }
 
-  }
+    // 6) Main task can sleep forever; WS events drive the rest
+    ESP_LOGI(TAG, "Setup complete. Entering idle loop.");
+    while (true) {
+        vTaskDelay(pdMS_TO_TICKS(10000));
+    }
+}

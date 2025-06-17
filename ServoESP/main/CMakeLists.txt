@@ -6,7 +6,10 @@ idf_component_register(
         main.c
         utils.c
         wifi.c
+        gate_controller.c
         my_ssd1306_init.c
+        app_context.c
+        ws_listener.c
         my_ssd1306.c       
         sg90.c
     INCLUDE_DIRS        # optional, add here public include directories

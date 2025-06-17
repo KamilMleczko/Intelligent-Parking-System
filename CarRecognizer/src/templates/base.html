@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link href="/static/css/tailwind.css" rel="stylesheet" />
+  <title>{% block title %}{% endblock %}</title>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div class="container mx-auto p-6">
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>

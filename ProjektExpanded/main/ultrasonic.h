@@ -122,9 +122,7 @@ esp_err_t ultrasonic_measure_cm_temp_compensated(const ultrasonic_sensor_t *dev,
                                                  uint32_t *distance,
                                                  float temperature_c);
 
-esp_err_t save_max_people(int max_people);
 
-int read_max_people();
 
 #ifdef __cplusplus
 }

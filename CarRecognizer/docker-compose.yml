@@ -4,5 +4,5 @@ services:
     ports: 
       - 8000:8000
     volumes:
-      - models/carPlateDetector.pt:models/carPlateDetector.pt:ro
-      - models/carModelRecognizer.pkl:models/carModelRecognizer.pkl:ro
+      - ./models/carPlateDetector.pt:/app/models/carPlateDetector.pt:ro
+      - ./models/carModelRecognizer.pth:/app/models/carModelRecognizer.pth:ro

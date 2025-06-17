@@ -1,0 +1,8 @@
+/* For some reason using tailwind v4 @import "tailwindcss" 
+directive did not work - a giant pain...
+I did it the old school way and it works
+*/
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@source "../../templates";

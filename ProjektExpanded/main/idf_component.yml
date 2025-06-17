@@ -16,3 +16,4 @@ dependencies:
   #   public: true
   espressif/esp32-camera: '*'
   espressif/mdns: '*'
+  espressif/esp_websocket_client: '*'
