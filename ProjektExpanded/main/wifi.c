@@ -74,7 +74,6 @@ static bool parse_prov_json(const char *body,
 }
 
 
-// 1) Initialize network interfaces & event loop
 static void init_netif(void) {
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -82,7 +81,6 @@ static void init_netif(void) {
     esp_netif_create_default_wifi_ap();
 }
 
-// 2) Mount SPIFFS (only once)
 static void mount_spiffs(void) {
     esp_vfs_spiffs_conf_t conf = {
         .base_path              = "/spiffs",
@@ -93,7 +91,6 @@ static void mount_spiffs(void) {
     ESP_ERROR_CHECK(esp_vfs_spiffs_register(&conf));
 }
 
-// 3) Start SoftAP for provisioning
 static void start_softap(void) {
     wifi_config_t ap_conf = { 0 };
     strncpy((char*)ap_conf.ap.ssid,     WIFI_AP_SSID, sizeof(ap_conf.ap.ssid)-1);
@@ -102,13 +99,11 @@ static void start_softap(void) {
     ap_conf.ap.max_connection = 4;
     ap_conf.ap.authmode = WIFI_AUTH_WPA2_PSK;
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_conf));
     ESP_ERROR_CHECK(esp_wifi_start());
     ESP_LOGI(TAG, "SoftAP started: SSID=%s, PASS=%s", WIFI_AP_SSID, WIFI_AP_PASS);
 }
 
-// 4) Serve static files from SPIFFS/www
 static esp_err_t static_get_handler(httpd_req_t *req) {
   const char *base = "/spiffs/www"; // 11 Bytes
   const char *uri  = req->uri; // 512 Bytes
@@ -176,7 +171,6 @@ static esp_err_t provision_post_handler(httpd_req_t *req)
     httpd_stop(http_server);
     ESP_ERROR_CHECK( esp_wifi_stop() );
 
-    // **Switch to STA** with new creds
     wifi_config_t sta_cfg = { 0 };
     strncpy((char*)sta_cfg.sta.ssid,     ssid, sizeof(sta_cfg.sta.ssid)-1);
     strncpy((char*)sta_cfg.sta.password, pass, sizeof(sta_cfg.sta.password)-1);
@@ -239,20 +233,23 @@ void init_wifi(void) {
     init_netif();
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
 
-    wifi_config_t saved = { 0 };
-    if (load_wifi_creds(&saved)) {
-        ESP_LOGI(TAG, "Found saved SSID='%s', connecting…", saved.sta.ssid);
-        ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
-        ESP_ERROR_CHECK( esp_wifi_set_config(WIFI_IF_STA, &saved) );
-        ESP_ERROR_CHECK( esp_wifi_start() );
-        ESP_ERROR_CHECK( esp_wifi_connect() );
-        return;
-    }
+    ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_APSTA) );
+    ESP_ERROR_CHECK( esp_wifi_start() );
 
     mount_spiffs();
     start_softap();
     init_mdns_service();
     start_http_server();
+
+    wifi_config_t saved = { 0 };
+    if (!load_wifi_creds(&saved)) {
+        return;
+    }
+    ESP_LOGI(TAG, "Found saved SSID='%s', connecting…", saved.sta.ssid);
+    ESP_ERROR_CHECK( esp_wifi_set_config(WIFI_IF_STA, &saved) );
+    ESP_ERROR_CHECK( esp_wifi_start() );
+    ESP_ERROR_CHECK( esp_wifi_connect() );
+
 }

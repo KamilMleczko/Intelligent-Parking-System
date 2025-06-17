@@ -46,7 +46,7 @@
 #define ECHO_GPIO 33
 
 // Added camera streaming parameters
-#define STREAM_FPS 0.5
+#define STREAM_FPS 0.2
 #define IMAGE_QUALITY 10
 #define CAMERA_BRIGHTNESS 500
 
@@ -85,8 +85,6 @@ float get_sensor_dist(const ultrasonic_sensor_t *sensor) {
     distance_array[i] = distance * 100;
     vTaskDelay(100);
   }
-
-
   float sum = 0;
   for (int i = 0; i < 10; i++) {
     sum = sum + distance_array[i];
@@ -127,68 +125,42 @@ void init_hw_services(void) {
   ESP_LOGI(LOG_HW, "Hardware services initialized");
 }
 
-
-
-// Camera streaming task moved from camera_stream.c
-void stream_camera_task(void *pvParameters) {
-
-   ultrasonic_sensor_t sensor = {// FIRST SENSOR
-                                  .trigger_pin = TRIGGER_GPIO,
-                                  .echo_pin = ECHO_GPIO};
+void stream_camera_task(void *pvParameters)
+{
+    // Initialize sensor and base distance
+    ultrasonic_sensor_t sensor = { .trigger_pin = TRIGGER_GPIO, .echo_pin = ECHO_GPIO };
     ultrasonic_init(&sensor);
-    float dist_first = get_sensor_dist(&sensor);
-    printf("distance first: %0.04f cm\n", dist_first);
-    while (dist_first > MAX_DISTANCE_CM) {
-      // try again until measurements are correct
-      dist_first = get_sensor_dist(&sensor);
-      printf("distance first: %0.04f cm\n", dist_first);
-    }
+    float base_dist = get_sensor_dist(&sensor);
+    ESP_LOGI("ULTRASONIC", "Base distance: %.2f cm", base_dist);
 
-
-
-    const TickType_t delay_time = 1000 / STREAM_FPS / portTICK_PERIOD_MS;
+    const TickType_t delay_time = pdMS_TO_TICKS(1000.0f / STREAM_FPS);
     int consecutive_failures = 0;
-    bool object_detected = false;
+
     while (true) {
-
-      // Ultrasonic sensor
-      float distance1;
-      esp_err_t res1 = ultrasonic_measure(&sensor, MAX_DISTANCE_CM, &distance1);
-      if (res1 != ESP_OK) {
-        printf("Error %d: ", res1);
-        switch (res1) {
-          case ESP_ERR_ULTRASONIC_PING:
-            printf("Cannot ping (device is in invalid state)\n");
-            break;
-          case ESP_ERR_ULTRASONIC_PING_TIMEOUT:
-            printf("Ping timeout (no device found)\n");
-            break;
-          case ESP_ERR_ULTRASONIC_ECHO_TIMEOUT:
-            printf("Echo timeout (i.e. distance too big)\n");
-            break;
-          default:
-            printf("%s\n", esp_err_to_name(res1));
+        // Measure current distance
+        float dist = 0;
+        if (ultrasonic_measure(&sensor, MAX_DISTANCE_CM, &dist) != ESP_OK) {
+            ESP_LOGW("ULTRASONIC", "Measurement failed, using base distance");
+            dist = base_dist / 100.0f;
+        } else {
+            ESP_LOGI("ULTRASONIC", "Current distance: %.2f cm", dist * 100);
         }
-      } else printf("Distance1: %0.04f cm\n", distance1 * 100);
-      float error_margin_first = dist_first * 0.2;
-      float diff_first = fabs(dist_first - distance1 * 100);
 
-
-      if (diff_first > error_margin_first) {
-        ESP_LOGE("ULTRASONIC", "Car detected");
-        object_detected = true;
-      }
-      else {
-        object_detected = false;
-      }
-
-
-        if (!socket_connected && !connect_socket()) {
-            ESP_LOGW("CAMERA_STREAM", "Failed to connect to server, retrying...");
-            vTaskDelay(5000 / portTICK_PERIOD_MS);
+        bool object_detected = fabsf(base_dist - dist * 100) > (base_dist * 0.2f);
+        
+        // Ensure WebSocket client
+        if (!init_websocket_client()) {
+            ESP_LOGW("CAMERA_STREAM", "WebSocket init failed, retrying in 5s");
+            vTaskDelay(pdMS_TO_TICKS(5000));
+            continue;
+        }
+        if (!websocket_connected) {
+            ESP_LOGW("CAMERA_STREAM", "WebSocket not connected, waiting...");
+            vTaskDelay(pdMS_TO_TICKS(1000));
             continue;
         }
 
+        // Capture frame
         camera_fb_t *fb = esp_camera_fb_get();
         if (!fb) {
             ESP_LOGE("CAMERA_STREAM", "Camera capture failed");
@@ -196,11 +168,13 @@ void stream_camera_task(void *pvParameters) {
             continue;
         }
 
+        // Send frame and status
         if (!send_frame_over_websocket(fb->buf, fb->len, object_detected)) {
-            consecutive_failures++;
+            ++consecutive_failures;
             ESP_LOGE("CAMERA_STREAM", "Failed to send frame (failure #%d)", consecutive_failures);
             if (consecutive_failures > 5) {
-                vTaskDelay(5000 / portTICK_PERIOD_MS);
+                ESP_LOGW("CAMERA_STREAM", "Pausing for 5s after repeated failures");
+                vTaskDelay(pdMS_TO_TICKS(5000));
             }
         } else {
             consecutive_failures = 0;
@@ -218,9 +192,6 @@ void app_main(void) {
     configure_time();
     ESP_LOGI(LOG_HW, "Starting application main function");
 
-   
-
-    
     #if ESP_CAMERA_SUPPORTED
         if (init_camera() != ESP_OK) {
             ESP_LOGE("CAMERA", "Failed to initialize camera!");

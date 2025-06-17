@@ -1,3 +1,6 @@
+#ifndef MY_SSD1306_H
+#define MY_SSD1306_H
+
 #include "driver/i2c_master.h"
 
 //command for oled communication datasheet(pages 28-32) https://cdn-shop.adafruit.com/datasheets/SSD1306.pdf
@@ -69,10 +72,6 @@ typedef struct{
 }i2c_handler_t;
 
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
 //function declarations here
 ssd1306_config_t create_config(void);
 void i2c_master_init(const ssd1306_config_t* config, i2c_handler_t* handler, oled_display_t* oled_display);
@@ -88,7 +87,5 @@ void display_bit_pattern(const ssd1306_config_t* config, oled_display_t* oled_di
 void show_text_large(const ssd1306_config_t* config, oled_display_t* oled_display, i2c_handler_t* handler, int page, char * text);
 void clear_large_page(const ssd1306_config_t* config, oled_display_t* oled_display, i2c_handler_t* handler, int page);
 void set_brightness(const ssd1306_config_t* config, i2c_handler_t* handler, int value);
-#ifdef __cplusplus
-}
-#endif
 
+#endif // MY_SSD1306_H

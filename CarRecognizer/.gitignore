@@ -5,3 +5,9 @@ __pycache__/
 .ruff-cache/
 stream
 uploads
+
+images/
+node_modules
+build/
+
+models/carModelRecognizer.pth

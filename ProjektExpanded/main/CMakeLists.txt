@@ -19,6 +19,7 @@ idf_component_register(
         esp-tls
         spiffs              # for esp_vfs_spiffs_register()
         esp_http_server     # for httpd_start() and URI handlers
+        esp_websocket_client
         json
     PRIV_REQUIRES       # optional, list the private requirements
     EMBED_TXTFILES server_root_cert.pem

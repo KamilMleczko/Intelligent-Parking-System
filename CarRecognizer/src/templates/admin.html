@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block content %}
+<!-- Registration Form -->
+<div class="bg-white p-4 rounded shadow mb-6">
+  <h2 class="text-xl font-semibold mb-2">Register New Plate</h2>
+  <form action="/admin/register" method="post" class="flex space-x-2">
+    <input type="text" name="plate_text" placeholder="ABC-1234" required
+           class="flex-1 border p-2 rounded" />
+    <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">Add</button>
+  </form>
+</div>
+
+<!-- Existing Plates -->
+<div class="bg-white p-4 rounded shadow mb-6">
+  <h2 class="text-xl font-semibold mb-2">Registered Plates</h2>
+  <ul class="divide-y">
+    {% for p in plates %}
+    <li class="py-2 flex justify-between items-center">
+      <span>{{ p.text }} <small class="text-gray-500">({{ p.when.strftime('%Y-%m-%d %H:%M') }})</small></span>
+      <form action="/admin/remove" method="post" class="inline">
+        <input type="hidden" name="plate_id" value="{{ p.id }}" />
+        <button type="submit" class="text-red-600 hover:underline">Remove</button>
+      </form>
+    </li>
+    {% else %}
+    <li class="py-2 text-gray-500">No plates registered.</li>
+    {% endfor %}
+  </ul>
+</div>
+
+<!-- Entry Logs -->
+<div class="bg-white p-4 rounded shadow">
+  <h2 class="text-xl font-semibold mb-2">Entry Log</h2>
+  <div class="overflow-auto">
+    <table class="w-full table-auto">
+      <thead>
+        <tr class="bg-gray-100">
+          <th class="px-4 py-2 text-left">Timestamp</th>
+          <th class="px-4 py-2 text-left">Plate</th>
+          <th class="px-4 py-2 text-left">Model</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr class="border-t">
+          <td class="px-4 py-2">{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+          <td class="px-4 py-2">{{ log.plate_text }}</td>
+          <td class="px-4 py-2">{{ log.model_name or '-' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" class="px-4 py-2 text-gray-500">No entries yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script src="/static/js/admin.bundle.js" type="module"></script>
+{% endblock %}
